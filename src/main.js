@@ -1,6 +1,4 @@
 import firebaseInit from "./init.js";
-import { getConferences } from "./fb.js";
-import fs from "fs";
 import conference from "./conf.js";
 
 void (async () => {
