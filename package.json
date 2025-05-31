@@ -1,0 +1,26 @@
+{
+  "name": "info-export",
+  "version": "1.0.0",
+  "description": "Exporting DEF CON data from Firebase",
+  "type": "module",
+  "homepage": "https://github.com/junctor/info-export#readme",
+  "bugs": {
+    "url": "https://github.com/junctor/info-export/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junctor/info-export.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "main": "src/main.js",
+  "scripts": {
+    "export": "node src/main.js"
+  },
+  "dependencies": {
+    "firebase": "^11.8.1"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3"
+  }
+}
