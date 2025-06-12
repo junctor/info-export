@@ -1,5 +1,6 @@
 import fs from "fs";
 import { getEvents, getSpeakers, getTags } from "./fb.js";
+import { processScheduleData } from "./utils.js";
 
 export default async function conference(fbDb, htConf, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -35,5 +36,12 @@ export default async function conference(fbDb, htConf, outputDir) {
   await fs.promises.writeFile(
     `${outputDir}/colors.json`,
     JSON.stringify(colorOutput)
+  );
+
+  const scheduleData = processScheduleData(htEvents, htTags);
+
+  await fs.promises.writeFile(
+    `${outputDir}/schedule.json`,
+    JSON.stringify(scheduleData)
   );
 }
