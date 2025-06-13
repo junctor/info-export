@@ -29,3 +29,32 @@ export const processScheduleData = (events, tags) => {
     };
   });
 };
+
+export function eventDay(time) {
+  // Format as YYYY-MM-DD in Vegas time
+  return time.toLocaleDateString("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+const groupedDates = (events) =>
+  events
+    .sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds)
+    .reduce((group, event) => {
+      const day = eventDay(new Date(event.beginTimestampSeconds * 1000));
+      const dayEvents = group.get(day) ?? [];
+      dayEvents.push(event);
+      group.set(day, dayEvents);
+      return group;
+    }, new Map());
+
+export const createDateGroup = (events) =>
+  new Map(
+    Array.from(groupedDates(events)).map(([day, events]) => [
+      day,
+      events.sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds),
+    ])
+  );
