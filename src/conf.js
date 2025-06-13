@@ -1,6 +1,7 @@
 import fs from "fs";
+import path from "path";
 import { getEvents, getSpeakers, getTags } from "./fb.js";
-import { processScheduleData } from "./utils.js";
+import { createDateGroup, processScheduleData } from "./utils.js";
 
 export default async function conference(fbDb, htConf, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -11,37 +12,44 @@ export default async function conference(fbDb, htConf, outputDir) {
     getTags(fbDb, htConf),
   ]);
 
+  console.log(
+    `Fetched: ${htEvents.length} events, ${htSpeakers.length} speakers, ${htTags.length} tag groups for ${htConf}`
+  );
+
+  // Write raw data
   await Promise.all([
-    fs.promises.writeFile(`${outputDir}/events.json`, JSON.stringify(htEvents)),
     fs.promises.writeFile(
-      `${outputDir}/speakers.json`,
+      path.join(outputDir, "events.json"),
+      JSON.stringify(htEvents)
+    ),
+    fs.promises.writeFile(
+      path.join(outputDir, "speakers.json"),
       JSON.stringify(htSpeakers)
     ),
-    fs.promises.writeFile(`${outputDir}/tags.json`, JSON.stringify(htTags)),
+    fs.promises.writeFile(
+      path.join(outputDir, "tags.json"),
+      JSON.stringify(htTags)
+    ),
   ]);
 
-  const eventColors = htEvents.map((e) => e.type.color);
-  const tagColors = htTags.flatMap((t) =>
-    t.tags.map((e) => e.color_background)
-  );
-
-  const confColors = new Set(
-    [...eventColors, ...tagColors].filter((t) => t !== null)
-  );
-
-  const colorOutput = {
-    colors: Array.from(confColors).sort(),
-  };
+  // Color extraction
+  const eventColors = htEvents.map((e) => e.type?.color).filter(Boolean);
+  const tagColors = htTags
+    .flatMap((t) => t.tags.map((e) => e.color_background))
+    .filter(Boolean);
+  const confColors = new Set([...eventColors, ...tagColors]);
 
   await fs.promises.writeFile(
-    `${outputDir}/colors.json`,
-    JSON.stringify(colorOutput)
+    path.join(outputDir, "colors.json"),
+    JSON.stringify({ colors: Array.from(confColors).sort() })
   );
 
+  // Schedule processing
   const scheduleData = processScheduleData(htEvents, htTags);
+  const groupedDates = createDateGroup(scheduleData);
 
   await fs.promises.writeFile(
-    `${outputDir}/schedule.json`,
-    JSON.stringify(scheduleData)
+    path.join(outputDir, "schedule.json"),
+    JSON.stringify(Object.fromEntries(groupedDates))
   );
 }
