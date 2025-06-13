@@ -4,23 +4,28 @@ export const processScheduleData = (events, tags) => {
     type: "conjunction",
   });
 
-  const allTags = tags?.flatMap((t) => t.tags) ?? [];
+  const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
 
-  return events.map((e) => ({
-    id: e.id,
-    begin: e.begin,
-    beginTimestampSeconds: e.begin_timestamp.seconds,
-    end: e.end,
-    endTimestampSeconds: e.end_timestamp.seconds,
-    title: e.title,
-    location: e.location.name,
-    color: e.type.color,
-    category: e.type.name,
-    tags:
-      e.tag_ids
-        .map((t) => allTags.find((a) => a.id === t))
-        .filter((tag) => tag !== undefined) ?? [],
-    speakers: formatter.format(e.speakers.map((s) => s.name)),
-  }));
+  return events.map((event) => {
+    const matchedTags =
+      event.tag_ids
+        ?.map((tagId) => allTags.find((tag) => tag.id === tagId))
+        .filter(Boolean) ?? [];
+
+    const speakerNames = event.speakers?.map((s) => s.name) ?? [];
+
+    return {
+      id: event.id,
+      begin: event.begin,
+      beginTimestampSeconds: event.begin_timestamp?.seconds ?? 0,
+      end: event.end,
+      endTimestampSeconds: event.end_timestamp?.seconds ?? 0,
+      title: event.title,
+      location: event.location?.name ?? "Unknown Location",
+      color: event.type?.color ?? "#000000",
+      category: event.type?.name ?? "Uncategorized",
+      tags: matchedTags,
+      speakers: speakerNames.length > 0 ? formatter.format(speakerNames) : null,
+    };
+  });
 };
-
