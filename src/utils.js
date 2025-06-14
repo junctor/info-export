@@ -6,26 +6,48 @@ export const processScheduleData = (events, tags) => {
 
   const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
 
+  // Helper to find speaker's sort_order from event.people[]
+  const findSortOrder = (people, speakerId) =>
+    people?.find((p) => p.person_id === speakerId)?.sort_order ?? null;
+
   return events.map((event) => {
     const matchedTags =
       event.tag_ids
-        ?.map((tagId) => allTags.find((tag) => tag.id === tagId))
+        ?.map((tagId) => {
+          const tag = allTags.find((tag) => tag.id === tagId);
+          if (!tag) return null;
+          return {
+            id: tag.id,
+            label: tag.label,
+            color_background: tag.color_background,
+            sort_order: tag.sort_order,
+          };
+        })
         .filter(Boolean) ?? [];
 
     const speakerNames = event.speakers?.map((s) => s.name) ?? [];
 
     return {
       id: event.id,
-      begin: event.begin,
-      beginTimestampSeconds: event.begin_timestamp?.seconds ?? 0,
-      end: event.end,
-      endTimestampSeconds: event.end_timestamp?.seconds ?? 0,
       title: event.title,
-      location: event.location?.name ?? "Unknown Location",
-      color: event.type?.color ?? "#000000",
-      category: event.type?.name ?? "Uncategorized",
+      description: event.description,
+      begin: event.begin,
+      end: event.end,
+      beginTimestampSeconds: event.begin_timestamp?.seconds ?? null,
+      endTimestampSeconds: event.end_timestamp?.seconds ?? null,
+      location: event.location?.name ?? null,
+      color: event.type?.color ?? null,
+      category: event.type?.name ?? null,
       tags: matchedTags,
       speakers: speakerNames.length > 0 ? formatter.format(speakerNames) : null,
+      speaker_details:
+        event.speakers?.map((s) => ({
+          id: s.id,
+          name: s.name,
+          title: s.title ?? null,
+          sort_order: findSortOrder(event.people, s.id),
+        })) ?? [],
+      links: event.links ?? [],
     };
   });
 };
