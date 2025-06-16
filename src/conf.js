@@ -36,18 +36,6 @@ export default async function conference(fbDb, htConf, outputDir) {
     ),
   ]);
 
-  // Color extraction
-  const eventColors = htEvents.map((e) => e.type?.color).filter(Boolean);
-  const tagColors = htTags
-    .flatMap((t) => t.tags.map((e) => e.color_background))
-    .filter(Boolean);
-  const confColors = new Set([...eventColors, ...tagColors]);
-
-  await fs.promises.writeFile(
-    path.join(outputDir, "colors.json"),
-    JSON.stringify({ colors: Array.from(confColors).sort() })
-  );
-
   // Schedule processing
   const scheduleData = processScheduleData(htEvents, htTags);
   const groupedDates = createDateGroup(scheduleData);
