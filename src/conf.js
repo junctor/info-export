@@ -8,7 +8,7 @@ import {
 } from "./utils.js";
 
 export default async function conference(fbDb, htConf, outputDir) {
-  fs.mkdirSync(outputDir, { recursive: true });
+  await fs.promises.mkdir(outputDir, { recursive: true });
 
   const [htEvents, htSpeakers, htTags] = await Promise.all([
     getEvents(fbDb, htConf),

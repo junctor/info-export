@@ -18,7 +18,7 @@ export async function getConferences(db, count = 10) {
 
 export async function getEvents(db, conference) {
   const docRef = collection(db, "conferences", conference, "events");
-  const q = query(docRef, orderBy("begin_timestamp", "desc"));
+  const q = query(docRef, orderBy("begin_timestamp", "asc"));
   const docSnap = await getDocs(q);
   const firebaseData = docSnap.docs.map((eventsDoc) => eventsDoc.data());
 

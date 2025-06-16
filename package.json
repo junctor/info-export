@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/junctor/info-export.git"
   },
-  "license": "ISC",
+  "license": "MIT",
   "author": "",
   "main": "src/main.js",
   "scripts": {
