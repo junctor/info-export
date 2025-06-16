@@ -20,6 +20,7 @@ export const processScheduleData = (events, tags) => {
             id: tag.id,
             label: tag.label,
             color_background: tag.color_background,
+            color_foreground: tag.color_foreground,
             sort_order: tag.sort_order,
           };
         })
