@@ -80,3 +80,43 @@ export const createDateGroup = (events) =>
       events.sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds),
     ])
   );
+
+export function processSpeakers(speakers, events) {
+  const eventsMap = new Map(
+    events.map((e) => [
+      e.id,
+      {
+        id: e.id,
+        title: e.title,
+        begin: e.begin,
+        end: e.end,
+        location: { name: e.location.name },
+        type: { color: e.type.color },
+      },
+    ])
+  );
+
+  const minimalSpeakers = speakers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    affiliations: s.affiliations.map((a) => ({
+      organization: a.organization,
+      title: a.title,
+    })),
+    description: s.description,
+    links: s.links.map((l) => ({
+      sort_order: l.sort_order,
+      title: l.title,
+      url: l.url,
+    })),
+    event_ids: s.event_ids,
+    media: s.media.map((m) => ({
+      asset_id: m.asset_id,
+      url: m.url,
+      sort_order: m.sort_order,
+    })),
+    events: s.event_ids.map((id) => eventsMap.get(id)).filter(Boolean),
+  }));
+
+  return minimalSpeakers;
+}

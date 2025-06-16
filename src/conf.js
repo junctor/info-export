@@ -1,7 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { getEvents, getSpeakers, getTags } from "./fb.js";
-import { createDateGroup, processScheduleData } from "./utils.js";
+import {
+  createDateGroup,
+  processScheduleData,
+  processSpeakers,
+} from "./utils.js";
 
 export default async function conference(fbDb, htConf, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
@@ -51,5 +55,12 @@ export default async function conference(fbDb, htConf, outputDir) {
   await fs.promises.writeFile(
     path.join(outputDir, "schedule.json"),
     JSON.stringify(Object.fromEntries(groupedDates))
+  );
+
+  // People processing
+  const peopleData = processSpeakers(htSpeakers, htEvents);
+  await fs.promises.writeFile(
+    path.join(outputDir, "people.json"),
+    JSON.stringify(peopleData)
   );
 }
