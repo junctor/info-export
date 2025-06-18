@@ -7,20 +7,25 @@
 
 ## Overview
 
-This Node.js script pulls **events**, **speakers**, and **tags** from a Firebase project, processes them into structured JSON files, and outputs them for use in powering the DEF CON schedule site.
+This Node.js script pulls a set of sub-collections under `conferences/DEFCON33` from your Firebase project, writes them out as raw JSON, and then applies a couple of light transformations for schedule grouping and speaker enrichment.
 
 By default, it:
 
-1. Fetches raw data from Firestore under `conferences/DEFCON33/…`
+1. Fetches raw data under `conferences/DEFCON33/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}`
 2. Writes to:
+   - `out/ht/conference.json` — the main conference document
+   - `out/ht/articles.json`
+   - `out/ht/content.json`
+   - `out/ht/documents.json`
    - `out/ht/events.json`
+   - `out/ht/locations.json`
+   - `out/ht/menus.json`
+   - `out/ht/organizations.json`
    - `out/ht/speakers.json`
-   - `out/ht/tags.json`
-   - `out/ht/schedule.json` — grouped by day
-   - `out/ht/people.json` — enriched speaker data
-3. Applies basic processing:
-   - Groups events by day
-   - Flattens speaker and event associations
+   - `out/ht/tagtypes.json`
+3. Generates two “derived” files:
+   - `out/ht/schedule.json` — events grouped by day
+   - `out/ht/people.json` — speakers with embedded event references
 
 ---
 
@@ -28,10 +33,8 @@ By default, it:
 
 - **Node.js** ≥ 18
 - **npm** or **yarn**
-- Access to a Firebase project with a `conferences/DEFCON33` collection and subcollections:
-  - `events`
-  - `speakers`
-  - `tagtypes`
+- A Firebase project containing a `conferences/DEFCON33` document and the above sub-collections
+- A `src/config.js` (or environment variables) specifying your `CONFERENCE_CODE` and any other Firebase settings
 
 ---
 
@@ -45,31 +48,56 @@ npm install
 
 ---
 
+## Configuration
+
+Edit `src/config.js` (or set env-vars) to point at your Firebase project and conference code:
+
+```js
+export const CONFERENCE_CODE = "DEFCON33";
+export const FIRESTORE_ROOT = ["conferences", CONFERENCE_CODE];
+```
+
+---
+
 ## Usage
 
-To run the export with default settings:
+Run the exporter with:
 
 ```bash
 npm run export
 ```
 
-This will:
+By default this will:
 
-- Connect to the Firebase project configured in `src/config.js`
-- Export data for `DEFCON33`
-- Write output files to `./out/ht`
+1. Read `CONFERENCE_CODE` from your config
+2. Fetch all listed collections
+3. Write raw JSON into `./out/ht`
+4. Produce `schedule.json` and `people.json`
+
+You can override the conference code at runtime:
+
+```bash
+CONFERENCE_CODE=DEFCON34 npm run export
+```
 
 ---
 
 ## Output Files
 
-| File            | Description                                      |
-| --------------- | ------------------------------------------------ |
-| `events.json`   | Raw event data from Firebase                     |
-| `speakers.json` | Raw speaker data                                 |
-| `tags.json`     | Raw tag groups                                   |
-| `schedule.json` | Events grouped by day, with simplified structure |
-| `people.json`   | Flattened speaker + event references             |
+| File                 | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `conference.json`    | The root conference document                   |
+| `articles.json`      | Raw “articles” collection                      |
+| `content.json`       | Raw “content” collection                       |
+| `documents.json`     | Raw “documents” collection                     |
+| `events.json`        | Raw “events” collection                        |
+| `locations.json`     | Raw “locations” collection                     |
+| `menus.json`         | Raw “menus” collection                         |
+| `organizations.json` | Raw “organizations” collection                 |
+| `speakers.json`      | Raw “speakers” collection                      |
+| `tagtypes.json`      | Raw “tagtypes” collection                      |
+| `schedule.json`      | Events grouped by day (object keyed by date)   |
+| `people.json`        | Speakers enriched with their associated events |
 
 ---
 
