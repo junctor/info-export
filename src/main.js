@@ -3,15 +3,13 @@ import conference from "./conf.js";
 
 void (async () => {
   const outputDir = "./out/ht";
-  const htConf = "DEFCON33";
 
   (async () => {
     try {
       const fbDb = await firebaseInit();
-      await conference(fbDb, htConf, outputDir);
+      await conference(fbDb, outputDir);
     } catch (err) {
       console.error("🚨 Export failed:", err);
-      process.exit(1);
     }
   })();
 })();
