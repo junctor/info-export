@@ -1,117 +1,16 @@
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  where,
-  limit,
-} from "firebase/firestore/lite";
-import { getBytes, getStorage, ref } from "firebase/storage";
-
-const conference = "DEFCON33";
-
-export async function getConferences(db, count = 10) {
-  const docRef = collection(db, "conferences");
-  const q = query(docRef, orderBy("updated_at", "desc"), limit(count));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((eventsDoc) => eventsDoc.data());
-
-  return firebaseData;
-}
-
-export async function getEvents(db) {
-  const docRef = collection(db, "conferences", conference, "events");
-  const q = query(docRef, orderBy("begin_timestamp", "asc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((eventsDoc) => eventsDoc.data());
-
-  return firebaseData;
-}
-
-export async function getTags(db) {
-  const docRef = collection(db, "conferences", conference, "tagtypes");
-  const docSnap = await getDocs(docRef);
-  const firebaseData = docSnap.docs.flatMap((tagsDoc) => tagsDoc.data()) ?? [];
-
-  return firebaseData;
-}
-
-export async function getSpeakers(db) {
-  const docRef = collection(db, "conferences", conference, "speakers");
-  const docSnap = await getDocs(docRef);
-  const firebaseData = docSnap.docs.map((speakerDoc) => speakerDoc.data());
-
-  return firebaseData;
-}
-
-export async function getLocations(db) {
-  const docRef = collection(db, "conferences", conference, "locations");
-  const docSnap = await getDocs(docRef);
-  const firebaseData = docSnap.docs.map((speakerDoc) => speakerDoc.data());
-
-  return firebaseData;
-}
+import { doc, collection, getDoc, getDocs } from "firebase/firestore/lite";
+import { FIRESTORE_ROOT, CONFERENCE_CODE } from "./config.js";
 
 export async function getConference(db) {
-  const docRef = collection(db, "conferences");
-  const q = query(docRef, where("code", "==", conference));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((eventsDoc) => eventsDoc.data());
-
-  return firebaseData[0];
+  // if your document ID is actually the same as your code, you can do a direct getDoc:
+  const docSnap = await getDoc(doc(db, ...FIRESTORE_ROOT));
+  if (!docSnap.exists())
+    throw new Error(`Conference ${CONFERENCE_CODE} not found`);
+  return docSnap.data();
 }
 
-export async function getNews(db) {
-  const docRef = collection(db, "conferences", conference, "articles");
-  const q = query(docRef, orderBy("id", "desc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((newsDoc) => newsDoc.data());
-
-  return firebaseData;
-}
-
-export async function getFbStorage(db, file) {
-  const storage = getStorage(db.app);
-  const pathReference = ref(storage, `${conference}/${file}`);
-  const bytes = await getBytes(pathReference);
-  return {
-    file,
-    bytes,
-  };
-}
-
-export async function getOrganizations(db) {
-  const docRef = collection(db, "conferences", conference, "organizations");
-  const q = query(docRef, orderBy("id", "desc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((orgDoc) => orgDoc.data());
-
-  return firebaseData;
-}
-
-export async function getDocuments(db) {
-  const docRef = collection(db, "conferences", conference, "documents");
-  const q = query(docRef, orderBy("id", "desc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((doc) => doc.data());
-
-  return firebaseData;
-}
-
-export async function getMenus(db) {
-  const docRef = collection(db, "conferences", conference, "menus");
-  const q = query(docRef, orderBy("id", "desc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((doc) => doc.data());
-
-  return firebaseData;
-}
-
-export async function getContent(db) {
-  const docRef = collection(db, "conferences", conference, "content");
-  const q = query(docRef, orderBy("id", "desc"));
-  const docSnap = await getDocs(q);
-  const firebaseData = docSnap.docs.map((doc) => doc.data());
-
-  return firebaseData;
+export async function fetchCollection(db, collectionName) {
+  const colRef = collection(db, ...FIRESTORE_ROOT, collectionName);
+  const snap = await getDocs(colRef);
+  return snap.docs.map((doc) => doc.data());
 }
