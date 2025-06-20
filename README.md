@@ -23,9 +23,10 @@ By default, it:
    - `out/ht/organizations.json`
    - `out/ht/speakers.json`
    - `out/ht/tagtypes.json`
-3. Generates two “derived” files:
+3. Generates three “derived” files:
    - `out/ht/schedule.json` — events grouped by day
    - `out/ht/people.json` — speakers with embedded event references
+   - `out/ht/processedContent.json` — Content refined and enriched
 
 ---
 
@@ -74,30 +75,25 @@ By default this will:
 3. Write raw JSON into `./out/ht`
 4. Produce `schedule.json` and `people.json`
 
-You can override the conference code at runtime:
-
-```bash
-CONFERENCE_CODE=DEFCON34 npm run export
-```
-
 ---
 
 ## Output Files
 
-| File                 | Description                                    |
-| -------------------- | ---------------------------------------------- |
-| `conference.json`    | The root conference document                   |
-| `articles.json`      | Raw “articles” collection                      |
-| `content.json`       | Raw “content” collection                       |
-| `documents.json`     | Raw “documents” collection                     |
-| `events.json`        | Raw “events” collection                        |
-| `locations.json`     | Raw “locations” collection                     |
-| `menus.json`         | Raw “menus” collection                         |
-| `organizations.json` | Raw “organizations” collection                 |
-| `speakers.json`      | Raw “speakers” collection                      |
-| `tagtypes.json`      | Raw “tagtypes” collection                      |
-| `schedule.json`      | Events grouped by day (object keyed by date)   |
-| `people.json`        | Speakers enriched with their associated events |
+| File                    | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `conference.json`       | The root conference document                   |
+| `articles.json`         | Raw “articles” collection                      |
+| `content.json`          | Raw “content” collection                       |
+| `documents.json`        | Raw “documents” collection                     |
+| `events.json`           | Raw “events” collection                        |
+| `locations.json`        | Raw “locations” collection                     |
+| `menus.json`            | Raw “menus” collection                         |
+| `organizations.json`    | Raw “organizations” collection                 |
+| `speakers.json`         | Raw “speakers” collection                      |
+| `tagtypes.json`         | Raw “tagtypes” collection                      |
+| `schedule.json`         | Events grouped by day (object keyed by date)   |
+| `people.json`           | Speakers enriched with their associated events |
+| `processedContent.json` | Content refined and enriched                   |
 
 ---
 

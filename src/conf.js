@@ -4,6 +4,7 @@ import path from "path";
 import { fetchCollection, getConference } from "./fb.js";
 import {
   createDateGroup,
+  processContentData,
   processScheduleData,
   processSpeakers,
 } from "./utils.js";
@@ -64,5 +65,14 @@ export default async function conference(db, outputDir) {
   await fs.writeFile(
     path.join(outputDir, "people.json"),
     JSON.stringify(peopleData, null, 2)
+  );
+
+  const processedContent = processContentData(
+    dataMap.content,
+    dataMap.speakers
+  );
+  await fs.writeFile(
+    path.join(outputDir, "processedContent.json"),
+    JSON.stringify(processedContent, null, 2)
   );
 }

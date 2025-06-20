@@ -121,3 +121,31 @@ export function processSpeakers(speakers, events) {
 
   return minimalSpeakers;
 }
+
+export function processContentData(contentItems, speakers) {
+  const speakerMap = new Map(speakers.map((sp) => [sp.id, sp.name]));
+
+  return contentItems.map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    sessions: item.sessions.map((s) => ({
+      session_id: s.session_id,
+      begin_tsz: s.begin_tsz,
+      end_tsz: s.end_tsz,
+      timezone_name: s.timezone_name,
+      location_id: s.location_id,
+    })),
+    links: item.links,
+    people: item.people
+      .map((p) => {
+        const name = speakerMap.get(p.person_id) || null;
+        return {
+          person_id: p.person_id,
+          sort_order: p.sort_order,
+          name,
+        };
+      })
+      .filter((p) => p.name),
+  }));
+}
