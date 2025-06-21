@@ -4,6 +4,7 @@ import path from "path";
 import { fetchCollection, getConference } from "./fb.js";
 import {
   createDateGroup,
+  createSearchData,
   processContentData,
   processScheduleData,
   processSpeakers,
@@ -58,21 +59,33 @@ export default async function conference(db, outputDir) {
   const groupedDates = createDateGroup(scheduleData);
   await fs.writeFile(
     path.join(outputDir, "schedule.json"),
-    JSON.stringify(Object.fromEntries(groupedDates), null, 2)
+    JSON.stringify(Object.fromEntries(groupedDates), null, 0)
   );
 
   const peopleData = processSpeakers(dataMap.speakers, dataMap.events);
   await fs.writeFile(
     path.join(outputDir, "people.json"),
-    JSON.stringify(peopleData, null, 2)
+    JSON.stringify(peopleData, null, 0)
   );
 
   const processedContent = processContentData(
     dataMap.content,
-    dataMap.speakers
+    dataMap.speakers,
+    dataMap.tagtypes
   );
   await fs.writeFile(
     path.join(outputDir, "processedContent.json"),
-    JSON.stringify(processedContent, null, 2)
+    JSON.stringify(processedContent, null, 0)
+  );
+
+  const processSearch = createSearchData(
+    dataMap.events,
+    dataMap.speakers,
+    dataMap.content,
+    dataMap.organizations
+  );
+  await fs.writeFile(
+    path.join(outputDir, "search.json"),
+    JSON.stringify(processSearch, null, 0)
   );
 }

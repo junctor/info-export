@@ -1,7 +1,6 @@
 # Info Export for DEF CON 33
 
-> Export DEF CON conference data from Firebase for use on [info.defcon.org](https://info.defcon.org)  
-> Brought to you by the Hacker Tracker team.
+> Export DEF CON conference data from Firebase for use on [info.defcon.org](https://info.defcon.org)
 
 ---
 
@@ -23,10 +22,11 @@ By default, it:
    - `out/ht/organizations.json`
    - `out/ht/speakers.json`
    - `out/ht/tagtypes.json`
-3. Generates three “derived” files:
+3. Generates four “derived” files:
    - `out/ht/schedule.json` — events grouped by day
    - `out/ht/people.json` — speakers with embedded event references
    - `out/ht/processedContent.json` — Content refined and enriched
+   - `out/ht/search.json` — IDs, titles, and types
 
 ---
 
@@ -94,6 +94,7 @@ By default this will:
 | `schedule.json`         | Events grouped by day (object keyed by date)   |
 | `people.json`           | Speakers enriched with their associated events |
 | `processedContent.json` | Content refined and enriched                   |
+| `search.json`           | IDs, titles, and types                         |
 
 ---
 

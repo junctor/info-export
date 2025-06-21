@@ -11,20 +11,20 @@ export const processScheduleData = (events, tags) => {
     people?.find((p) => p.person_id === speakerId)?.sort_order ?? null;
 
   return events.map((event) => {
-    const matchedTags =
-      event.tag_ids
-        ?.map((tagId) => {
-          const tag = allTags.find((tag) => tag.id === tagId);
-          if (!tag) return null;
-          return {
-            id: tag.id,
-            label: tag.label,
-            color_background: tag.color_background,
-            color_foreground: tag.color_foreground,
-            sort_order: tag.sort_order,
-          };
-        })
-        .filter(Boolean) ?? [];
+    const matchedTags = event.tag_ids
+      ?.map((tagId) => {
+        const tag = allTags.find((tag) => tag.id === tagId);
+        if (!tag) return null;
+        return {
+          id: tag.id,
+          label: tag.label,
+          color_background: tag.color_background,
+          color_foreground: tag.color_foreground,
+          sort_order: tag.sort_order,
+        };
+      })
+      .filter((t) => t !== null)
+      .sort((a, b) => a.sort_order - b.sort_order);
 
     const speakerNames = event.speakers?.map((s) => s.name) ?? [];
 
@@ -97,55 +97,121 @@ export function processSpeakers(speakers, events) {
     ])
   );
 
-  const minimalSpeakers = speakers.map((s) => ({
-    id: s.id,
-    name: s.name,
-    affiliations: s.affiliations.map((a) => ({
-      organization: a.organization,
-      title: a.title,
-    })),
-    description: s.description,
-    links: s.links.map((l) => ({
-      sort_order: l.sort_order,
-      title: l.title,
-      url: l.url,
-    })),
-    event_ids: s.event_ids,
-    media: s.media.map((m) => ({
-      asset_id: m.asset_id,
-      url: m.url,
-      sort_order: m.sort_order,
-    })),
-    events: s.event_ids.map((id) => eventsMap.get(id)).filter(Boolean),
-  }));
+  const minimalSpeakers = speakers
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      affiliations: s.affiliations.map((a) => ({
+        organization: a.organization,
+        title: a.title,
+      })),
+      description: s.description,
+      links: s.links.map((l) => ({
+        sort_order: l.sort_order,
+        title: l.title,
+        url: l.url,
+      })),
+      event_ids: s.event_ids,
+      media: s.media.map((m) => ({
+        asset_id: m.asset_id,
+        url: m.url,
+        sort_order: m.sort_order,
+      })),
+      events: s.event_ids.map((id) => eventsMap.get(id)).filter(Boolean),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return minimalSpeakers;
 }
 
-export function processContentData(contentItems, speakers) {
+export function processContentData(content, speakers, tags) {
   const speakerMap = new Map(speakers.map((sp) => [sp.id, sp.name]));
+  const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
 
-  return contentItems.map((item) => ({
-    id: item.id,
-    title: item.title,
-    description: item.description,
-    sessions: item.sessions.map((s) => ({
-      session_id: s.session_id,
-      begin_tsz: s.begin_tsz,
-      end_tsz: s.end_tsz,
-      timezone_name: s.timezone_name,
-      location_id: s.location_id,
+  return content
+    .map((item) => {
+      const matchedTags = item.tag_ids
+        ?.map((tagId) => {
+          const tag = allTags.find((tag) => tag.id === tagId);
+          if (!tag) return null;
+          return {
+            id: tag.id,
+            label: tag.label,
+            color_background: tag.color_background,
+            color_foreground: tag.color_foreground,
+            sort_order: tag.sort_order,
+          };
+        })
+        .filter((t) => t !== null)
+        .sort((a, b) => a.sort_order - b.sort_order);
+
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        sessions: item.sessions.map((s) => ({
+          session_id: s.session_id,
+          begin_tsz: s.begin_tsz,
+          end_tsz: s.end_tsz,
+          timezone_name: s.timezone_name,
+          location_id: s.location_id,
+        })),
+        links: item.links,
+        tags: matchedTags,
+        people: item.people
+          .map((p) => {
+            const name = speakerMap.get(p.person_id) || null;
+            return {
+              person_id: p.person_id,
+              sort_order: p.sort_order,
+              name,
+            };
+          })
+          .filter((p) => p.name),
+      };
+    })
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export function createSearchData(events, speakers, content, organizations) {
+  const raw = [
+    ...speakers.map((s) => ({
+      id: s.id,
+      text: s.name,
+      value: s.name.toLowerCase(),
+      type: "person",
     })),
-    links: item.links,
-    people: item.people
-      .map((p) => {
-        const name = speakerMap.get(p.person_id) || null;
-        return {
-          person_id: p.person_id,
-          sort_order: p.sort_order,
-          name,
-        };
-      })
-      .filter((p) => p.name),
-  }));
+    ...events.map((e) => ({
+      id: e.id,
+      text: e.title,
+      value: e.title.toLowerCase(),
+      type: "event",
+    })),
+    ...content.map((c) => ({
+      id: c.id,
+      text: c.title,
+      value: c.title.toLowerCase(),
+      type: "content",
+    })),
+    ...organizations.map((o) => ({
+      id: o.id,
+      text: o.name,
+      value: o.name.toLowerCase(),
+      type: "organization",
+    })),
+  ];
+
+  const uniqueMap = new Map();
+
+  for (const item of raw) {
+    const existing = uniqueMap.get(item.text);
+
+    if (!existing || (existing.type === "content" && item.type === "event")) {
+      uniqueMap.set(item.text, item);
+    }
+  }
+
+  return Array.from(uniqueMap.values()).sort((a, b) =>
+    a.value.localeCompare(b.value)
+  );
 }
