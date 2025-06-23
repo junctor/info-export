@@ -1,19 +1,25 @@
+const LOCALE = "en-US";
+const TZ = "America/Los_Angeles";
+
+/**
+ * Normalize raw events into enriched ScheduleEvent objects with tags and speaker info.
+ * @param {Array<Object>} events - Raw event data
+ * @param {Array<Object>} tags - Array of tagGroup objects, each with a `tags` array
+ * @returns {Array<Object>} Processed events
+ */
 export const processScheduleData = (events, tags) => {
   const formatter = new Intl.ListFormat("en", {
     style: "long",
     type: "conjunction",
   });
-
   const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
-
-  // Helper to find speaker's sort_order from event.people[]
   const findSortOrder = (people, speakerId) =>
     people?.find((p) => p.person_id === speakerId)?.sort_order ?? null;
 
   return events.map((event) => {
     const matchedTags = event.tag_ids
       ?.map((tagId) => {
-        const tag = allTags.find((tag) => tag.id === tagId);
+        const tag = allTags.find((t) => t.id === tagId);
         if (!tag) return null;
         return {
           id: tag.id,
@@ -40,7 +46,7 @@ export const processScheduleData = (events, tags) => {
       color: event.type?.color ?? null,
       category: event.type?.name ?? null,
       tags: matchedTags,
-      speakers: speakerNames.length > 0 ? formatter.format(speakerNames) : null,
+      speakers: speakerNames.length ? formatter.format(speakerNames) : null,
       speaker_details:
         event.speakers?.map((s) => ({
           id: s.id,
@@ -53,35 +59,44 @@ export const processScheduleData = (events, tags) => {
   });
 };
 
+/**
+ * Format a Date or timestamp into 'YYYY-MM-DD' in the America/Los_Angeles timezone.
+ */
 export function eventDay(time) {
-  // Format as YYYY-MM-DD in Vegas time
-  return time.toLocaleDateString("en-CA", {
-    timeZone: "America/Los_Angeles",
+  return new Date(time).toLocaleDateString(LOCALE, {
+    timeZone: TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 }
 
+// Internal helper to group by date
 const groupedDates = (events) =>
   events
     .sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds)
     .reduce((group, event) => {
-      const day = eventDay(new Date(event.beginTimestampSeconds * 1000));
+      const day = eventDay(event.beginTimestampSeconds * 1000);
       const dayEvents = group.get(day) ?? [];
       dayEvents.push(event);
       group.set(day, dayEvents);
       return group;
     }, new Map());
 
+/**
+ * Group processed events by day into a Map of YYYY-MM-DD → [events]
+ */
 export const createDateGroup = (events) =>
   new Map(
-    Array.from(groupedDates(events)).map(([day, events]) => [
+    Array.from(groupedDates(events)).map(([day, evts]) => [
       day,
-      events.sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds),
+      evts.sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds),
     ])
   );
 
+/**
+ * Process speaker profiles and attach minimal event info.
+ */
 export function processSpeakers(speakers, events) {
   const eventsMap = new Map(
     events.map((e) => [
@@ -97,7 +112,7 @@ export function processSpeakers(speakers, events) {
     ])
   );
 
-  const minimalSpeakers = speakers
+  return speakers
     .map((s) => ({
       id: s.id,
       name: s.name,
@@ -120,10 +135,11 @@ export function processSpeakers(speakers, events) {
       events: s.event_ids.map((id) => eventsMap.get(id)).filter(Boolean),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-
-  return minimalSpeakers;
 }
 
+/**
+ * Process content items with sessions, tags, and people.
+ */
 export function processContentData(content, speakers, tags) {
   const speakerMap = new Map(speakers.map((sp) => [sp.id, sp.name]));
   const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
@@ -131,19 +147,16 @@ export function processContentData(content, speakers, tags) {
   return content
     .map((item) => {
       const matchedTags = item.tag_ids
-        ?.map((tagId) => {
-          const tag = allTags.find((tag) => tag.id === tagId);
-          if (!tag) return null;
-          return {
-            id: tag.id,
-            label: tag.label,
-            color_background: tag.color_background,
-            color_foreground: tag.color_foreground,
-            sort_order: tag.sort_order,
-          };
-        })
-        .filter((t) => t !== null)
-        .sort((a, b) => a.sort_order - b.sort_order);
+        ?.map((tagId) => allTags.find((t) => t.id === tagId))
+        .filter((t) => t)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((tag) => ({
+          id: tag.id,
+          label: tag.label,
+          color_background: tag.color_background,
+          color_foreground: tag.color_foreground,
+          sort_order: tag.sort_order,
+        }));
 
       return {
         id: item.id,
@@ -159,20 +172,20 @@ export function processContentData(content, speakers, tags) {
         links: item.links,
         tags: matchedTags,
         people: item.people
-          .map((p) => {
-            const name = speakerMap.get(p.person_id) || null;
-            return {
-              person_id: p.person_id,
-              sort_order: p.sort_order,
-              name,
-            };
-          })
+          .map((p) => ({
+            person_id: p.person_id,
+            sort_order: p.sort_order,
+            name: speakerMap.get(p.person_id),
+          }))
           .filter((p) => p.name),
       };
     })
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
+/**
+ * Build a unified search index across people, events, content, and organizations.
+ */
 export function createSearchData(events, speakers, content, organizations) {
   const raw = [
     ...speakers.map((s) => ({
@@ -202,10 +215,8 @@ export function createSearchData(events, speakers, content, organizations) {
   ];
 
   const uniqueMap = new Map();
-
   for (const item of raw) {
     const existing = uniqueMap.get(item.text);
-
     if (!existing || (existing.type === "content" && item.type === "event")) {
       uniqueMap.set(item.text, item);
     }
@@ -214,4 +225,38 @@ export function createSearchData(events, speakers, content, organizations) {
   return Array.from(uniqueMap.values()).sort((a, b) =>
     a.value.localeCompare(b.value)
   );
+}
+
+/**
+ * Build a map of tag.id → object containing tag metadata and a date-grouped schedule.
+ * Uses processScheduleData internally.
+ *
+ * @param {Array<Object>} events - Raw event data
+ * @param {Array<Object>} tags - Array of tagGroup objects with `tags` arrays
+ * @returns {Object<number, {id, label, color_background, color_foreground, sort_order, schedule: Object<string, Array<Object>>}>}
+ */
+export function mapTagsToProcessedSchedule(events, tags) {
+  const processed = processScheduleData(events, tags);
+  const allTags = tags?.flatMap((group) => group.tags) ?? [];
+
+  return allTags.reduce((acc, tag) => {
+    const taggedEvents = processed.filter((evt) =>
+      evt.tags.some((t) => t.id === tag.id)
+    );
+    const grouped = createDateGroup(taggedEvents);
+    const schedule = Array.from(grouped).reduce((obj, [day, evts]) => {
+      obj[day] = evts;
+      return obj;
+    }, {});
+
+    acc[tag.id] = {
+      id: tag.id,
+      label: tag.label,
+      color_background: tag.color_background,
+      color_foreground: tag.color_foreground,
+      sort_order: tag.sort_order,
+      schedule,
+    };
+    return acc;
+  }, {});
 }

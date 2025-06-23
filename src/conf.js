@@ -5,6 +5,7 @@ import { fetchCollection, getConference } from "./fb.js";
 import {
   createDateGroup,
   createSearchData,
+  mapTagsToProcessedSchedule,
   processContentData,
   processScheduleData,
   processSpeakers,
@@ -87,5 +88,14 @@ export default async function conference(db, outputDir) {
   await fs.writeFile(
     path.join(outputDir, "search.json"),
     JSON.stringify(processSearch, null, 0)
+  );
+
+  const processTags = mapTagsToProcessedSchedule(
+    dataMap.events,
+    dataMap.tagtypes
+  );
+  await fs.writeFile(
+    path.join(outputDir, "tags.json"),
+    JSON.stringify(processTags, null, 0)
   );
 }
