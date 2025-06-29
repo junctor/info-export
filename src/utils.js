@@ -134,7 +134,7 @@ export function processSpeakers(speakers, events) {
       })),
       events: s.event_ids.map((id) => eventsMap.get(id)).filter(Boolean),
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => alphaSort(a.name, b.name));
 }
 
 /**
@@ -180,7 +180,7 @@ export function processContentData(content, speakers, tags) {
           .filter((p) => p.name),
       };
     })
-    .sort((a, b) => a.title.localeCompare(b.title));
+    .sort((a, b) => alphaSort(a.title, b.title));
 }
 
 /**
@@ -191,28 +191,24 @@ export function createSearchData(events, speakers, content, organizations) {
     ...speakers.map((s) => ({
       id: s.id,
       text: s.name,
-      value: s.name.toLowerCase(),
       type: "person",
     })),
     ...events.map((e) => ({
       id: e.id,
       text: e.title,
-      value: e.title.toLowerCase(),
       type: "event",
     })),
     ...content.map((c) => ({
       id: c.id,
       text: c.title,
-      value: c.title.toLowerCase(),
       type: "content",
     })),
     ...organizations.map((o) => ({
       id: o.id,
       text: o.name,
-      value: o.name.toLowerCase(),
       type: "organization",
     })),
-  ];
+  ].sort((a, b) => alphaSort(a.text, b.text));
 
   const uniqueMap = new Map();
   for (const item of raw) {
@@ -223,7 +219,7 @@ export function createSearchData(events, speakers, content, organizations) {
   }
 
   return Array.from(uniqueMap.values()).sort((a, b) =>
-    a.value.localeCompare(b.value)
+    alphaSort(a.value, b.value)
   );
 }
 
@@ -259,4 +255,14 @@ export function mapTagsToProcessedSchedule(events, tags) {
     };
     return acc;
   }, {});
+}
+
+function cleanForSort(str) {
+  return str?.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+export function alphaSort(a, b) {
+  const cleanA = cleanForSort(a);
+  const cleanB = cleanForSort(b);
+  return cleanA?.localeCompare(cleanB);
 }
