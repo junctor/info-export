@@ -9,6 +9,7 @@ import {
   processContentData,
   processScheduleData,
   processSpeakers,
+  processContentDataById,
 } from "./utils.js";
 
 const collections = [
@@ -79,8 +80,18 @@ export default async function conference(db, outputDir) {
     JSON.stringify(processedContent, null, 0)
   );
 
+  const processedContentById = processContentDataById(
+    dataMap.content,
+    dataMap.speakers,
+    dataMap.tagtypes,
+    dataMap.locations
+  );
+  await fs.writeFile(
+    path.join(outputDir, "processedContentById.json"),
+    JSON.stringify(processedContentById, null, 0)
+  );
+
   const processSearch = createSearchData(
-    dataMap.events,
     dataMap.speakers,
     dataMap.content,
     dataMap.organizations

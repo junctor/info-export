@@ -1,6 +1,11 @@
 const LOCALE = "en-US";
 const TZ = "America/Los_Angeles";
 
+const nameFormatter = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+});
+
 /**
  * Normalize raw events into enriched ScheduleEvent objects with tags and speaker info.
  * @param {Array<Object>} events - Raw event data
@@ -8,13 +13,7 @@ const TZ = "America/Los_Angeles";
  * @returns {Array<Object>} Processed events
  */
 export const processScheduleData = (events, tags) => {
-  const formatter = new Intl.ListFormat("en", {
-    style: "long",
-    type: "conjunction",
-  });
   const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
-  const findSortOrder = (people, speakerId) =>
-    people?.find((p) => p.person_id === speakerId)?.sort_order ?? null;
 
   return events.map((event) => {
     const matchedTags = event.tag_ids
@@ -36,25 +35,16 @@ export const processScheduleData = (events, tags) => {
 
     return {
       id: event.id,
+      content_id: event.content_id,
       title: event.title,
-      description: event.description,
       begin: event.begin,
       end: event.end,
       beginTimestampSeconds: event.begin_timestamp?.seconds ?? null,
       endTimestampSeconds: event.end_timestamp?.seconds ?? null,
       location: event.location?.name ?? null,
       color: event.type?.color ?? null,
-      category: event.type?.name ?? null,
       tags: matchedTags,
-      speakers: speakerNames.length ? formatter.format(speakerNames) : null,
-      speaker_details:
-        event.speakers?.map((s) => ({
-          id: s.id,
-          name: s.name,
-          title: s.title ?? null,
-          sort_order: findSortOrder(event.people, s.id),
-        })) ?? [],
-      links: event.links ?? [],
+      speakers: speakerNames.length ? nameFormatter.format(speakerNames) : null,
     };
   });
 };
@@ -103,6 +93,7 @@ export function processSpeakers(speakers, events) {
       e.id,
       {
         id: e.id,
+        content_id: e.content_id,
         title: e.title,
         begin: e.begin,
         end: e.end,
@@ -126,7 +117,6 @@ export function processSpeakers(speakers, events) {
         title: l.title,
         url: l.url,
       })),
-      event_ids: s.event_ids,
       media: s.media.map((m) => ({
         asset_id: m.asset_id,
         url: m.url,
@@ -158,6 +148,50 @@ export function processContentData(content, speakers, tags) {
           sort_order: tag.sort_order,
         }));
 
+      const peopleNames = item.people
+        .map((p) => ({
+          person_id: p.person_id,
+          sort_order: p.sort_order,
+          name: speakerMap.get(p.person_id),
+        }))
+        .filter((p) => p.name)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((p) => p.name);
+
+      return {
+        id: item.id,
+        title: item.title,
+        tags: matchedTags,
+        people: peopleNames.length ? nameFormatter.format(peopleNames) : null,
+      };
+    })
+    .sort((a, b) => alphaSort(a.title, b.title));
+}
+
+/**
+ * Process content items with sessions, tags, and people.
+ */
+export function processContentDataById(content, speakers, tags, locations) {
+  const speakerMap = new Map(speakers.map((sp) => [sp.id, sp.name]));
+  const allTags = tags?.flatMap((tagGroup) => tagGroup.tags) ?? [];
+  function locationName(id) {
+    return locations?.find((loc) => loc.id === id)?.name ?? null;
+  }
+
+  const contentData = content
+    .map((item) => {
+      const matchedTags = item.tag_ids
+        ?.map((tagId) => allTags.find((t) => t.id === tagId))
+        .filter((t) => t)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((tag) => ({
+          id: tag.id,
+          label: tag.label,
+          color_background: tag.color_background,
+          color_foreground: tag.color_foreground,
+          sort_order: tag.sort_order,
+        }));
+
       return {
         id: item.id,
         title: item.title,
@@ -168,6 +202,7 @@ export function processContentData(content, speakers, tags) {
           end_tsz: s.end_tsz,
           timezone_name: s.timezone_name,
           location_id: s.location_id,
+          location_name: locationName(s.location_id),
         })),
         links: item.links,
         tags: matchedTags,
@@ -181,22 +216,23 @@ export function processContentData(content, speakers, tags) {
       };
     })
     .sort((a, b) => alphaSort(a.title, b.title));
+
+  // Create a map by content ID for quick access
+  return contentData.reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  }, {});
 }
 
 /**
  * Build a unified search index across people, events, content, and organizations.
  */
-export function createSearchData(events, speakers, content, organizations) {
-  const raw = [
+export function createSearchData(speakers, content, organizations) {
+  return [
     ...speakers.map((s) => ({
       id: s.id,
       text: s.name,
       type: "person",
-    })),
-    ...events.map((e) => ({
-      id: e.id,
-      text: e.title,
-      type: "event",
     })),
     ...content.map((c) => ({
       id: c.id,
@@ -209,18 +245,6 @@ export function createSearchData(events, speakers, content, organizations) {
       type: "organization",
     })),
   ].sort((a, b) => alphaSort(a.text, b.text));
-
-  const uniqueMap = new Map();
-  for (const item of raw) {
-    const existing = uniqueMap.get(item.text);
-    if (!existing || (existing.type === "content" && item.type === "event")) {
-      uniqueMap.set(item.text, item);
-    }
-  }
-
-  return Array.from(uniqueMap.values()).sort((a, b) =>
-    alphaSort(a.value, b.value)
-  );
 }
 
 /**
