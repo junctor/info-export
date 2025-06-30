@@ -58,6 +58,7 @@ export function eventDay(time) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZoneName: "short",
   });
 }
 
@@ -66,7 +67,7 @@ const groupedDates = (events) =>
   events
     .sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds)
     .reduce((group, event) => {
-      const day = eventDay(event.beginTimestampSeconds * 1000);
+      const day = eventDay(event.begin);
       const dayEvents = group.get(day) ?? [];
       dayEvents.push(event);
       group.set(day, dayEvents);
