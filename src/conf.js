@@ -56,6 +56,12 @@ export default async function conference(db, outputDir) {
     )
   );
 
+  // save htConf as well
+  await fs.writeFile(
+    path.join(outputDir, "conference.json"),
+    JSON.stringify(htConf, null, 0)
+  );
+
   // ── post-processing ───────────────────────────────────────────────────────
   const scheduleData = processScheduleData(dataMap.events, dataMap.tagtypes);
   const groupedDates = createDateGroup(scheduleData);
