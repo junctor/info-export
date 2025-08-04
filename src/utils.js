@@ -214,6 +214,7 @@ export function processContentDataById(content, speakers, tags, locations) {
             name: speakerMap.get(p.person_id),
           }))
           .filter((p) => p.name),
+        related_content_ids: item.related_content_ids,
       };
     })
     .sort((a, b) => alphaSort(a.title, b.title));
