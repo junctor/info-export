@@ -2,7 +2,6 @@ import { doc, collection, getDoc, getDocs } from "firebase/firestore/lite";
 import { FIRESTORE_ROOT, CONFERENCE_CODE } from "./config.js";
 
 export async function getConference(db) {
-  // if your document ID is actually the same as your code, you can do a direct getDoc:
   const docSnap = await getDoc(doc(db, ...FIRESTORE_ROOT));
   if (!docSnap.exists())
     throw new Error(`Conference ${CONFERENCE_CODE} not found`);

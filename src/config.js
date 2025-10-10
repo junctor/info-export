@@ -7,5 +7,5 @@ export const firebaseConfig = {
   measurementId: "G-JSP9RM82KG",
 };
 
-export const CONFERENCE_CODE = "DEFCON33";
+export const CONFERENCE_CODE = "DEFCONBAHRAIN2025";
 export const FIRESTORE_ROOT = ["conferences", CONFERENCE_CODE];
