@@ -1,5 +1,5 @@
-const LOCALE = "en-US";
-const TZ = "America/Los_Angeles";
+const LOCALE = "en-BH";
+const TZ = "Asia/Bahrain";
 
 const nameFormatter = new Intl.ListFormat("en", {
   style: "long",
