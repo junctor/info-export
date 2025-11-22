@@ -1,7 +1,7 @@
-const LOCALE = "en-BH";
-const TZ = "Asia/Bahrain";
+const LOCALE = "en-SG";
+const TZ = "Asia/Singapore";
 
-const nameFormatter = new Intl.ListFormat("en", {
+const nameFormatter = new Intl.ListFormat(LOCALE, {
   style: "long",
   type: "conjunction",
 });
