@@ -6,27 +6,27 @@
 
 ## Overview
 
-This Node.js script pulls a set of sub-collections under `conferences/DEFCON33` from your Firebase project, writes them out as raw JSON, and then applies a couple of light transformations for schedule grouping and speaker enrichment.
+This Node.js script pulls a set of sub-collections under `conferences/{conferenceCode}` from your Firebase project, writes them out as raw JSON, and then applies a couple of light transformations for schedule grouping and speaker enrichment.
 
 By default, it:
 
-1. Fetches raw data under `conferences/DEFCON33/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}`
+1. Fetches raw data under `conferences/{conferenceCode}/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}`
 2. Writes to:
-   - `out/ht/conference.json` — the main conference document
-   - `out/ht/articles.json`
-   - `out/ht/content.json`
-   - `out/ht/documents.json`
-   - `out/ht/events.json`
-   - `out/ht/locations.json`
-   - `out/ht/menus.json`
-   - `out/ht/organizations.json`
-   - `out/ht/speakers.json`
-   - `out/ht/tagtypes.json`
+   - `out/ht/{conferenceCode}/conference.json` — the main conference document
+   - `out/ht/{conferenceCode}/articles.json`
+   - `out/ht/{conferenceCode}/content.json`
+   - `out/ht/{conferenceCode}/documents.json`
+   - `out/ht/{conferenceCode}/events.json`
+   - `out/ht/{conferenceCode}/locations.json`
+   - `out/ht/{conferenceCode}/menus.json`
+   - `out/ht/{conferenceCode}/organizations.json`
+   - `out/ht/{conferenceCode}/speakers.json`
+   - `out/ht/{conferenceCode}/tagtypes.json`
 3. Generates four “derived” files:
-   - `out/ht/schedule.json` — events grouped by day
-   - `out/ht/people.json` — speakers with embedded event references
-   - `out/ht/processedContent.json` — Content refined and enriched
-   - `out/ht/search.json` — IDs, titles, and types
+   - `out/ht/{conferenceCode}/schedule.json` — events grouped by day
+   - `out/ht/{conferenceCode}/people.json` — speakers with embedded event references
+   - `out/ht/{conferenceCode}/processedContent.json` — Content refined and enriched
+   - `out/ht/{conferenceCode}/search.json` — IDs, titles, and types
 
 ---
 
@@ -34,8 +34,8 @@ By default, it:
 
 - **Node.js** ≥ 18
 - **npm** or **yarn**
-- A Firebase project containing a `conferences/DEFCON33` document and the above sub-collections
-- A `src/config.js` (or environment variables) specifying your `CONFERENCE_CODE` and any other Firebase settings
+- A Firebase project containing a `conferences/{conferenceCode}` document and the above sub-collections
+- A `src/config.js` (or environment variables) specifying your Firebase settings
 
 ---
 
@@ -51,28 +51,23 @@ npm install
 
 ## Configuration
 
-Edit `src/config.js` (or set env-vars) to point at your Firebase project and conference code:
-
-```js
-export const CONFERENCE_CODE = "DEFCON33";
-export const FIRESTORE_ROOT = ["conferences", CONFERENCE_CODE];
-```
+Edit `src/config.js` (or set env-vars) to point at your Firebase project.
 
 ---
 
 ## Usage
 
-Run the exporter with:
+Run the exporter with a conference code:
 
 ```bash
-npm run export
+npm run export -- DEFCON33
 ```
 
 By default this will:
 
-1. Read `CONFERENCE_CODE` from your config
-2. Fetch all listed collections
-3. Write raw JSON into `./out/ht`
+1. Read the conference code from the first CLI argument
+2. Fetch all listed collections under `conferences/{conferenceCode}`
+3. Write raw JSON into `./out/ht/{conferenceCode}`
 4. Produce `schedule.json` and `people.json`
 
 ---
