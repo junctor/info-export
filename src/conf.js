@@ -24,12 +24,14 @@ const collections = [
   "tagtypes",
 ];
 
-export default async function conference(db, outputDir) {
+export default async function conference(db, outputDir, conferenceCode) {
   await fs.mkdir(outputDir, { recursive: true });
 
   // 1) fetch everything in parallel
-  const confPromise = getConference(db);
-  const fetchPromises = collections.map((c) => fetchCollection(db, c));
+  const confPromise = getConference(db, conferenceCode);
+  const fetchPromises = collections.map((c) =>
+    fetchCollection(db, conferenceCode, c)
+  );
   const [htConf, ...rawData] = await Promise.all([
     confPromise,
     ...fetchPromises,

@@ -6,6 +6,3 @@ export const firebaseConfig = {
   appId: "1:552364409858:web:ceb163b5ca77ebe00d131b",
   measurementId: "G-JSP9RM82KG",
 };
-
-export const CONFERENCE_CODE = "DEFCONSINGAPORE2026";
-export const FIRESTORE_ROOT = ["conferences", CONFERENCE_CODE];
