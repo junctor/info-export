@@ -1,5 +1,4 @@
-const LOCALE = "en-SG";
-const TZ = "Asia/Singapore";
+const LOCALE = "en-US";
 
 const nameFormatter = new Intl.ListFormat(LOCALE, {
   style: "long",
@@ -50,11 +49,11 @@ export const processScheduleData = (events, tags) => {
 };
 
 /**
- * Format a Date or timestamp into 'YYYY-MM-DD' in the America/Los_Angeles timezone.
+ * Format a Date or timestamp into 'YYYY-MM-DD' in the provided timezone.
  */
-export function eventDay(time) {
+export function eventDay(time, timeZone) {
   return new Date(time).toLocaleDateString(LOCALE, {
-    timeZone: TZ,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -63,13 +62,13 @@ export function eventDay(time) {
 }
 
 // Internal helper to group by date
-const groupedDates = (events) =>
+const groupedDates = (events, timeZone) =>
   events
     .sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds)
     .reduce((group, event) => {
-      const day = eventDay(event.begin);
+      const day = eventDay(event.begin, timeZone);
       const dayEvents = group.get(day) ?? [];
-      dayEvents.push(event);
+      dayEvents.push(event.id ? event : null);
       group.set(day, dayEvents);
       return group;
     }, new Map());
@@ -77,12 +76,12 @@ const groupedDates = (events) =>
 /**
  * Group processed events by day into a Map of YYYY-MM-DD → [events]
  */
-export const createDateGroup = (events) =>
+export const createDateGroup = (events, timeZone) =>
   new Map(
-    Array.from(groupedDates(events)).map(([day, evts]) => [
+    Array.from(groupedDates(events, timeZone)).map(([day, evts]) => [
       day,
       evts.sort((a, b) => a.beginTimestampSeconds - b.beginTimestampSeconds),
-    ])
+    ]),
   );
 
 /**
@@ -101,7 +100,7 @@ export function processSpeakers(speakers, events) {
         location: { name: e.location.name },
         type: { color: e.type.color },
       },
-    ])
+    ]),
   );
 
   return speakers
@@ -257,15 +256,15 @@ export function createSearchData(speakers, content, organizations) {
  * @param {Array<Object>} tags - Array of tagGroup objects with `tags` arrays
  * @returns {Object<number, {id, label, color_background, color_foreground, sort_order, schedule: Object<string, Array<Object>>}>}
  */
-export function mapTagsToProcessedSchedule(events, tags) {
+export function mapTagsToProcessedSchedule(events, tags, timeZone) {
   const processed = processScheduleData(events, tags);
   const allTags = tags?.flatMap((group) => group.tags) ?? [];
 
   return allTags.reduce((acc, tag) => {
     const taggedEvents = processed.filter((evt) =>
-      evt.tags.some((t) => t.id === tag.id)
+      evt.tags.some((t) => t.id === tag.id),
     );
-    const grouped = createDateGroup(taggedEvents);
+    const grouped = createDateGroup(taggedEvents, timeZone);
     const schedule = Array.from(grouped).reduce((obj, [day, evts]) => {
       obj[day] = evts;
       return obj;
