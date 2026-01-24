@@ -10,7 +10,7 @@ void (async () => {
     process.exit(1);
   }
 
-  const outputDir = `./out/ht/${confCode.toLowerCase()}`;
+  const outputDir = "./out/ht";
 
   (async () => {
     try {
