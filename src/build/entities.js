@@ -231,6 +231,7 @@ export function buildEntities(dataMap) {
         id: article.id,
         name: article.name,
         text: article.text ?? null,
+        updated_at: resolveUpdatedAtMs(article),
       })),
     ),
     documents: buildEntityMap(
