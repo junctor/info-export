@@ -242,7 +242,7 @@ export function buildEntities(dataMap) {
           title_text: doc.title_text ?? null,
           body_text: doc.body_text ?? null,
         };
-        if (updatedAtMs != null) model.updatedAtMs = updatedAtMs;
+        if (updatedAtMs != null) model.updated_at = updatedAtMs;
         return model;
       }),
     ),
