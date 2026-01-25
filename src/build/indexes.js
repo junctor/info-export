@@ -59,7 +59,8 @@ export function buildIndexes({ entities, timeZone }) {
     const minuteKey = formatMinuteKey(event.begin, timeZone);
     addToIndex(eventsByStartMinute, minuteKey, eventId);
 
-    const locationId = event.location_id != null ? String(event.location_id) : null;
+    const locationId =
+      event.location_id != null ? String(event.location_id) : null;
     if (locationId) {
       addToIndex(eventsByLocation, locationId, eventId);
     }

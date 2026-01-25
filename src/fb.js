@@ -15,7 +15,7 @@ export async function fetchCollection(db, conferenceCode, collectionName) {
   const colRef = collection(
     db,
     ...getFirestoreRoot(conferenceCode),
-    collectionName
+    collectionName,
   );
   const snap = await getDocs(colRef);
   return snap.docs.map((doc) => doc.data());

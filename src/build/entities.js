@@ -84,12 +84,14 @@ function buildEventModel(event, refs) {
   const tagIds = uniqAndFilter(event.tag_ids || [], refs.tagIds);
 
   const locationId = event.location?.id ?? event.location_id ?? null;
-  const resolvedLocationId = locationId != null && refs.locationIds.has(String(locationId))
-    ? locationId
-    : null;
-  const resolvedContentId = event.content_id != null && refs.contentIds.has(String(event.content_id))
-    ? event.content_id
-    : null;
+  const resolvedLocationId =
+    locationId != null && refs.locationIds.has(String(locationId))
+      ? locationId
+      : null;
+  const resolvedContentId =
+    event.content_id != null && refs.contentIds.has(String(event.content_id))
+      ? event.content_id
+      : null;
 
   const beginTimestampSeconds = getEventTimestampSeconds(event);
   const endTimestampSeconds = getEventEndTimestampSeconds(event);
@@ -165,7 +167,10 @@ export function buildEntities(dataMap) {
           peopleEntries.map((person) => person.person_id),
         );
         const peopleOrderById = new Map(
-          peopleEntries.map((person) => [String(person.person_id), person.sort_order ?? null]),
+          peopleEntries.map((person) => [
+            String(person.person_id),
+            person.sort_order ?? null,
+          ]),
         );
         const model = {
           id: item.id,

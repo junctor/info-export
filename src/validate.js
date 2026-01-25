@@ -27,7 +27,9 @@ export function validateData({ dataMap, timeZone }) {
   if (invalidTimezone) warnings.push(`invalid timezone "${timeZone}"`);
 
   const locationIds = new Set(dataMap.locations.map((loc) => String(loc.id)));
-  const personIds = new Set(dataMap.speakers.map((person) => String(person.id)));
+  const personIds = new Set(
+    dataMap.speakers.map((person) => String(person.id)),
+  );
   const tagIds = new Set(
     dataMap.tagtypes.flatMap((group) =>
       (group.tags || []).map((tag) => String(tag.id)),

@@ -72,7 +72,8 @@ export function formatMinuteKey(time, timeZone) {
 
 export function getEventTimestampSeconds(event) {
   if (event.beginTimestampSeconds != null) return event.beginTimestampSeconds;
-  if (event.begin_timestamp?.seconds != null) return event.begin_timestamp.seconds;
+  if (event.begin_timestamp?.seconds != null)
+    return event.begin_timestamp.seconds;
   const ms = Date.parse(event.begin);
   return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
 }

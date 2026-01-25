@@ -101,14 +101,18 @@ export default async function conference(
     summary.missingEventPeople
       ? `events missing people=${summary.missingEventPeople}`
       : null,
-    summary.missingEventTags ? `events missing tags=${summary.missingEventTags}` : null,
+    summary.missingEventTags
+      ? `events missing tags=${summary.missingEventTags}`
+      : null,
     summary.missingEventContent
       ? `events missing content=${summary.missingEventContent}`
       : null,
     summary.missingEventBegin
       ? `events missing/invalid begin=${summary.missingEventBegin}`
       : null,
-    summary.missingEventEnd ? `events missing/invalid end=${summary.missingEventEnd}` : null,
+    summary.missingEventEnd
+      ? `events missing/invalid end=${summary.missingEventEnd}`
+      : null,
     summary.invalidEventRanges
       ? `events begin>=end=${summary.invalidEventRanges}`
       : null,

@@ -87,7 +87,8 @@ function checkIndexSorted(indexName, index, eventsById, contentById, errors) {
       errors.push(`indexes/${indexName}.${key} is not an array`);
       continue;
     }
-    const compare = indexName === "contentByTag" ? compareContentIds : compareEventIds;
+    const compare =
+      indexName === "contentByTag" ? compareContentIds : compareEventIds;
     if (!isSorted(list, compare)) {
       errors.push(`indexes/${indexName}.${key} not sorted`);
       break;
@@ -103,10 +104,19 @@ function checkViewArrays(views, entities, errors) {
   const contentCards = views.contentCards ?? [];
   const eventCardsById = views.eventCardsById ?? null;
 
-  if (eventCardsById && Object.prototype.hasOwnProperty.call(eventCardsById, "allIds")) {
-    errors.push("views/eventCardsById contains allIds (should be byId map only)");
+  if (
+    eventCardsById &&
+    Object.prototype.hasOwnProperty.call(eventCardsById, "allIds")
+  ) {
+    errors.push(
+      "views/eventCardsById contains allIds (should be byId map only)",
+    );
   }
-  if (!eventCardsById || typeof eventCardsById !== "object" || Array.isArray(eventCardsById)) {
+  if (
+    !eventCardsById ||
+    typeof eventCardsById !== "object" ||
+    Array.isArray(eventCardsById)
+  ) {
     errors.push("views/eventCardsById is not a map");
   } else {
     const allowedEventKeys = new Set([
@@ -161,7 +171,9 @@ function checkViewArrays(views, entities, errors) {
         break;
       }
       if (
-        !isSorted(card.tags, (a, b) => sortTagsWithRefs(a, b, entities.tags.byId))
+        !isSorted(card.tags, (a, b) =>
+          sortTagsWithRefs(a, b, entities.tags.byId),
+        )
       ) {
         errors.push(`views/eventCardsById.tags not sorted for ${id}`);
         break;
@@ -240,7 +252,9 @@ function checkViewArrays(views, entities, errors) {
         break;
       }
       if (
-        !isSorted(type.tags, (a, b) => sortTagsWithRefs(a, b, entities.tags.byId))
+        !isSorted(type.tags, (a, b) =>
+          sortTagsWithRefs(a, b, entities.tags.byId),
+        )
       ) {
         errors.push("views/tagTypesBrowse.tags not sorted");
         break;
@@ -251,7 +265,10 @@ function checkViewArrays(views, entities, errors) {
         const aOrder = a.sort_order ?? 0;
         const bOrder = b.sort_order ?? 0;
         if (aOrder !== bOrder) return aOrder - bOrder;
-        const labelCompare = String(a.label).localeCompare(String(b.label), "en");
+        const labelCompare = String(a.label).localeCompare(
+          String(b.label),
+          "en",
+        );
         if (labelCompare !== 0) return labelCompare;
         return String(a.id).localeCompare(String(b.id), "en");
       })
@@ -334,7 +351,9 @@ function checkViewArrays(views, entities, errors) {
         break;
       }
       if (
-        !isSorted(card.tags, (a, b) => sortTagsWithRefs(a, b, entities.tags.byId))
+        !isSorted(card.tags, (a, b) =>
+          sortTagsWithRefs(a, b, entities.tags.byId),
+        )
       ) {
         errors.push("views/contentCards.tags not sorted");
         break;
@@ -390,7 +409,10 @@ function checkReferenceIntegrity(entities, errors) {
   const contentIds = new Set(Object.keys(entities.content.byId || {}));
 
   for (const event of Object.values(entities.events.byId || {})) {
-    if (event.location_id != null && !locationIds.has(String(event.location_id))) {
+    if (
+      event.location_id != null &&
+      !locationIds.has(String(event.location_id))
+    ) {
       errors.push(`events references missing location ${event.location_id}`);
       break;
     }
@@ -444,7 +466,13 @@ export function verifyOutputs({ entities, indexes, views }) {
   checkReferenceIntegrity(entities, errors);
 
   for (const [indexName, index] of Object.entries(indexes)) {
-    checkIndexSorted(indexName, index, entities.events.byId, entities.content.byId, errors);
+    checkIndexSorted(
+      indexName,
+      index,
+      entities.events.byId,
+      entities.content.byId,
+      errors,
+    );
   }
 
   checkViewArrays(views, entities, errors);

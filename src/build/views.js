@@ -50,9 +50,10 @@ export function buildViews({ entities }) {
       if (name) speakerNameSet.add(name);
     }
 
-    const locationName = event.location_id != null
-      ? locationsById[String(event.location_id)]?.name ?? null
-      : null;
+    const locationName =
+      event.location_id != null
+        ? (locationsById[String(event.location_id)]?.name ?? null)
+        : null;
 
     eventCardsById[String(event.id)] = {
       id: event.id,
