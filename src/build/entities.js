@@ -208,11 +208,13 @@ export function buildEntities(dataMap) {
     organizations: buildEntityMap(
       dataMap.organizations.map((org) => {
         const logoUrl = org.logo?.url ?? null;
+        const tagIds = uniqAndFilter(org.tag_ids || []);
         const model = {
           id: org.id,
           name: org.name,
         };
         if (logoUrl) model.logo_url = logoUrl;
+        if (tagIds.length) model.tag_ids = tagIds;
         return model;
       }),
     ),

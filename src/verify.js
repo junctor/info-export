@@ -97,7 +97,7 @@ function checkIndexSorted(indexName, index, eventsById, contentById, errors) {
 }
 
 function checkViewArrays(views, entities, errors) {
-  const organizationsCards = views.organizationsCards ?? [];
+  const organizationsCards = views.organizationsCards ?? null;
   const peopleCards = views.peopleCards ?? [];
   const tagTypesBrowse = views.tagTypesBrowse ?? [];
   const documentsList = views.documentsList ?? [];
@@ -191,27 +191,47 @@ function checkViewArrays(views, entities, errors) {
     }
   }
 
-  if (!Array.isArray(organizationsCards)) {
-    errors.push("views/organizationsCards not array");
-  } else if (
-    !isSorted(organizationsCards, (a, b) => {
-      const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
-      if (nameCompare !== 0) return nameCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
-    })
+  if (
+    !organizationsCards ||
+    typeof organizationsCards !== "object" ||
+    Array.isArray(organizationsCards)
   ) {
-    errors.push("views/organizationsCards not sorted");
+    errors.push("views/organizationsCards not map");
   } else {
     const allowedOrgKeys = new Set(["id", "name", "logoUrl"]);
-    for (const org of organizationsCards) {
-      if (org?.id == null || org?.name == null) {
-        errors.push("views/organizationsCards missing id/name");
+    for (const [tagKey, list] of Object.entries(organizationsCards)) {
+      if (!Array.isArray(list)) {
+        errors.push(`views/organizationsCards.${tagKey} not array`);
         break;
       }
-      if (!keysAreSubset(org, allowedOrgKeys)) {
-        errors.push("views/organizationsCards has extra keys");
+      if (
+        !isSorted(list, (a, b) => {
+          const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
+          if (nameCompare !== 0) return nameCompare;
+          return String(a.id).localeCompare(String(b.id), "en");
+        })
+      ) {
+        errors.push(`views/organizationsCards.${tagKey} not sorted`);
         break;
       }
+      const seenIds = new Set();
+      for (const org of list) {
+        if (org?.id == null || org?.name == null) {
+          errors.push("views/organizationsCards missing id/name");
+          break;
+        }
+        const key = String(org.id);
+        if (seenIds.has(key)) {
+          errors.push("views/organizationsCards has duplicate id in group");
+          break;
+        }
+        seenIds.add(key);
+        if (!keysAreSubset(org, allowedOrgKeys)) {
+          errors.push("views/organizationsCards has extra keys");
+          break;
+        }
+      }
+      if (errors.length) break;
     }
   }
 

@@ -69,7 +69,7 @@ export function buildViews({ entities }) {
     };
   }
 
-  const organizationsCards = entities.organizations.allIds
+  const organizationsCardsList = entities.organizations.allIds
     .map((orgId) => {
       const org = organizationsById[String(orgId)];
       if (!org) return null;
@@ -78,14 +78,41 @@ export function buildViews({ entities }) {
         name: org.name,
       };
       if (org.logo_url) card.logoUrl = org.logo_url;
-      return card;
+      return {
+        card,
+        tagIds: Array.isArray(org.tag_ids) ? org.tag_ids : [],
+      };
     })
     .filter(Boolean)
     .sort((a, b) => {
-      const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
+      const nameCompare = compareStringsCaseInsensitive(
+        a.card.name,
+        b.card.name,
+      );
       if (nameCompare !== 0) return nameCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return String(a.card.id).localeCompare(String(b.card.id), "en");
     });
+
+  const organizationsCards = {};
+  for (const { card, tagIds } of organizationsCardsList) {
+    const seenTags = new Set();
+    let assigned = false;
+    for (const tagId of tagIds) {
+      if (tagId == null) continue;
+      const key = String(tagId);
+      if (seenTags.has(key)) continue;
+      seenTags.add(key);
+      const list = organizationsCards[key] ?? [];
+      list.push(card);
+      organizationsCards[key] = list;
+      assigned = true;
+    }
+    if (!assigned) {
+      const list = organizationsCards.uncategorized ?? [];
+      list.push(card);
+      organizationsCards.uncategorized = list;
+    }
+  }
 
   const peopleCards = entities.people.allIds
     .map((personId) => {

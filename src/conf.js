@@ -152,9 +152,20 @@ export default async function conference(
   const indexCounts = Object.entries(indexes)
     .map(([name, index]) => `${name}=${Object.keys(index).length}`)
     .join(", ");
+  const organizationsCardsUniqueCount = (() => {
+    const seen = new Set();
+    for (const list of Object.values(views.organizationsCards || {})) {
+      if (!Array.isArray(list)) continue;
+      for (const card of list) {
+        if (card?.id == null) continue;
+        seen.add(String(card.id));
+      }
+    }
+    return seen.size;
+  })();
   const viewCounts = [
     `eventCardsById=${Object.keys(views.eventCardsById || {}).length}`,
-    `organizationsCards=${views.organizationsCards?.length ?? 0}`,
+    `organizationsCards=${organizationsCardsUniqueCount}`,
     `peopleCards=${views.peopleCards?.length ?? 0}`,
     `tagTypesBrowse=${views.tagTypesBrowse?.length ?? 0}`,
     `documentsList=${views.documentsList?.length ?? 0}`,
