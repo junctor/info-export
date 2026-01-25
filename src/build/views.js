@@ -1,4 +1,5 @@
 import { formatNameList } from "../normalize.js";
+import { createSearchData } from "./search.js";
 
 function compareStringsCaseInsensitive(a, b) {
   return String(a).localeCompare(String(b), "en", { sensitivity: "base" });
@@ -191,6 +192,18 @@ export function buildViews({ entities }) {
       return String(a.id).localeCompare(String(b.id), "en");
     });
 
+  const searchData = createSearchData(
+    entities.people.allIds
+      .map((personId) => peopleById[String(personId)])
+      .filter(Boolean),
+    entities.content.allIds
+      .map((contentId) => contentById[String(contentId)])
+      .filter(Boolean),
+    entities.organizations.allIds
+      .map((orgId) => organizationsById[String(orgId)])
+      .filter(Boolean),
+  );
+
   return {
     eventCardsById,
     organizationsCards,
@@ -198,5 +211,6 @@ export function buildViews({ entities }) {
     tagTypesBrowse,
     documentsList,
     contentCards,
+    searchData,
   };
 }
