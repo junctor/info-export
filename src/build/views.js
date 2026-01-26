@@ -180,12 +180,12 @@ export function buildViews({ entities }) {
       return {
         id: doc.id,
         title_text: doc.title_text ?? null,
-        updatedAtMs: doc.updatedAtMs ?? 0,
+        updated_at: doc.updated_at ?? 0,
       };
     })
     .filter(Boolean)
     .sort((a, b) => {
-      if (a.updatedAtMs !== b.updatedAtMs) return b.updatedAtMs - a.updatedAtMs;
+      if (a.updated_at !== b.updated_at) return b.updated_at - a.updated_at;
       return String(a.id).localeCompare(String(b.id), "en");
     });
 
