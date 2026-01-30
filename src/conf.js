@@ -6,6 +6,7 @@ import path from "path";
 import { fetchCollection, getConference } from "./fb.js";
 import { buildEntities } from "./build/entities.js";
 import { buildIndexes } from "./build/indexes.js";
+import { buildDerivedSiteMenu } from "./build/menus.js";
 import { buildViews } from "./build/views.js";
 import { buildManifest } from "./build/manifest.js";
 import { ensureDir, writeJson, writeJsonSanitized } from "./io.js";
@@ -54,6 +55,7 @@ export default async function conference(
   const entitiesDir = path.join(outputDir, "entities");
   const indexesDir = path.join(outputDir, "indexes");
   const viewsDir = path.join(outputDir, "views");
+  const derivedDir = path.join(outputDir, "derived");
 
   // Writes entities, indexes, views, and manifest.json for fast lookups.
   await Promise.all([
@@ -61,6 +63,7 @@ export default async function conference(
     ensureDir(entitiesDir),
     ensureDir(indexesDir),
     ensureDir(viewsDir),
+    ensureDir(derivedDir),
   ]);
 
   console.log(`Starting export for ${conferenceCode} → ${outputDir}`);
@@ -138,6 +141,10 @@ export default async function conference(
   await writeRawOutputs({ emitRaw, rawDir, dataMap, htConf });
 
   // - derived entities/indexes/views/manifest ───────────────────────────────
+  const derivedMenu = buildDerivedSiteMenu(dataMap);
+  console.log(
+    `Derived: siteMenu primary=${derivedMenu.primary.length} sections=${derivedMenu.sections?.length ?? 0}`,
+  );
   const entities = buildEntities(dataMap);
   const { indexes } = buildIndexes({
     entities,
@@ -211,6 +218,10 @@ export default async function conference(
       ),
   );
 
+  await writeJsonSanitized(
+    path.join(derivedDir, "siteMenu.json"),
+    derivedMenu,
+  );
   await writeJsonSanitized(path.join(outputDir, "manifest.json"), manifest);
 
   console.log(`Output root: ${outputDir}`);
