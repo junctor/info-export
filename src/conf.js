@@ -10,9 +10,14 @@ import { buildDerivedSiteMenu } from "./build/menus.js";
 import { buildTagIdsByLabel } from "./build/tags.js";
 import { buildViews } from "./build/views.js";
 import { buildManifest } from "./build/manifest.js";
-import { ensureDir, writeJson, writeJsonSanitized } from "./io.js";
+import {
+  ensureDir,
+  stableStringify,
+  writeJson,
+  writeJsonSanitized,
+} from "./io.js";
 import { validateData } from "./validate.js";
-import { verifyOutputs } from "./verify.js";
+import { summarizeOutputDir, verifyOutputs } from "./verify.js";
 
 const collections = [
   "articles",
@@ -27,10 +32,30 @@ const collections = [
 ];
 
 function sortCollection(items) {
-  if (!items.length || items.some((item) => item?.id == null)) return items;
-  return items
-    .slice()
-    .sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
+  if (!items.length) return items;
+  const withKeys = items.map((item) => {
+    const idKey = item?.id == null ? null : String(item.id);
+    return {
+      item,
+      idKey,
+      fallbackKey: idKey == null ? stableStringify(item) : null,
+    };
+  });
+  return withKeys
+    .sort((a, b) => {
+      if (a.idKey != null && b.idKey != null) {
+        return a.idKey.localeCompare(b.idKey, "en");
+      }
+      if (a.idKey != null) return -1;
+      if (b.idKey != null) return 1;
+      const fallbackCompare = String(a.fallbackKey).localeCompare(
+        String(b.fallbackKey),
+        "en",
+      );
+      if (fallbackCompare !== 0) return fallbackCompare;
+      return 0;
+    })
+    .map(({ item }) => item);
 }
 
 async function writeRawOutputs({ emitRaw, rawDir, dataMap, htConf }) {
@@ -93,38 +118,38 @@ export default async function conference(
     console.log(` • ${items.length} ${name}`);
   }
 
-  const { warnings, summary } = validateData({
+  const { warnings, summary: validationSummary } = validateData({
     dataMap,
     timeZone: htConf.timezone,
   });
   const warningEntries = [
-    summary.invalidTimezone ? `invalid timezone` : null,
-    summary.missingEventLocations
-      ? `events missing locations=${summary.missingEventLocations}`
+    validationSummary.invalidTimezone ? `invalid timezone` : null,
+    validationSummary.missingEventLocations
+      ? `events missing locations=${validationSummary.missingEventLocations}`
       : null,
-    summary.missingEventPeople
-      ? `events missing people=${summary.missingEventPeople}`
+    validationSummary.missingEventPeople
+      ? `events missing people=${validationSummary.missingEventPeople}`
       : null,
-    summary.missingEventTags
-      ? `events missing tags=${summary.missingEventTags}`
+    validationSummary.missingEventTags
+      ? `events missing tags=${validationSummary.missingEventTags}`
       : null,
-    summary.missingEventContent
-      ? `events missing content=${summary.missingEventContent}`
+    validationSummary.missingEventContent
+      ? `events missing content=${validationSummary.missingEventContent}`
       : null,
-    summary.missingEventBegin
-      ? `events missing/invalid begin=${summary.missingEventBegin}`
+    validationSummary.missingEventBegin
+      ? `events missing/invalid begin=${validationSummary.missingEventBegin}`
       : null,
-    summary.missingEventEnd
-      ? `events missing/invalid end=${summary.missingEventEnd}`
+    validationSummary.missingEventEnd
+      ? `events missing/invalid end=${validationSummary.missingEventEnd}`
       : null,
-    summary.invalidEventRanges
-      ? `events begin>=end=${summary.invalidEventRanges}`
+    validationSummary.invalidEventRanges
+      ? `events begin>=end=${validationSummary.invalidEventRanges}`
       : null,
-    summary.missingContentTags
-      ? `content missing tags=${summary.missingContentTags}`
+    validationSummary.missingContentTags
+      ? `content missing tags=${validationSummary.missingContentTags}`
       : null,
-    summary.missingContentPeople
-      ? `content missing people=${summary.missingContentPeople}`
+    validationSummary.missingContentPeople
+      ? `content missing people=${validationSummary.missingContentPeople}`
       : null,
   ].filter(Boolean);
   if (warningEntries.length) {
@@ -223,15 +248,33 @@ export default async function conference(
       ),
   );
 
-  await writeJsonSanitized(
-    path.join(derivedDir, "siteMenu.json"),
-    derivedMenu,
-  );
+  await writeJsonSanitized(path.join(derivedDir, "siteMenu.json"), derivedMenu);
   await writeJsonSanitized(
     path.join(derivedDir, "tagIdsByLabel.json"),
     tagIdsByLabel,
   );
   await writeJsonSanitized(path.join(outputDir, "manifest.json"), manifest);
+
+  const { summary, warnings: outputWarnings } = await summarizeOutputDir({
+    outputDir,
+    emitRaw,
+  });
+  if (outputWarnings.length) {
+    console.warn(`⚠️  Output summary warnings: ${outputWarnings.join("; ")}`);
+    if (strict || verify) {
+      throw new Error("Output summary check failed under strict/verify");
+    }
+  }
+  console.log(
+    `Output summary: files=${summary.totalFiles} size=${summary.totalSizeKb}KB entities=${summary.sectionCounts.entities} indexes=${summary.sectionCounts.indexes} views=${summary.sectionCounts.views} derived=${summary.sectionCounts.derived}${emitRaw ? ` raw=${summary.sectionCounts.raw}` : ""}`,
+  );
+  if (summary.largestFiles.length) {
+    console.log(
+      `Largest files: ${summary.largestFiles
+        .map((entry) => `${entry.name}=${entry.sizeKb}KB`)
+        .join(", ")}`,
+    );
+  }
 
   console.log(`Output root: ${outputDir}`);
   console.log(`Raw outputs emitted: ${emitRaw}`);
