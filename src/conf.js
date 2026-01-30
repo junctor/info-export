@@ -7,6 +7,7 @@ import { fetchCollection, getConference } from "./fb.js";
 import { buildEntities } from "./build/entities.js";
 import { buildIndexes } from "./build/indexes.js";
 import { buildDerivedSiteMenu } from "./build/menus.js";
+import { buildTagIdsByLabel } from "./build/tags.js";
 import { buildViews } from "./build/views.js";
 import { buildManifest } from "./build/manifest.js";
 import { ensureDir, writeJson, writeJsonSanitized } from "./io.js";
@@ -145,6 +146,10 @@ export default async function conference(
   console.log(
     `Derived: siteMenu primary=${derivedMenu.primary.length} sections=${derivedMenu.sections?.length ?? 0}`,
   );
+  const tagIdsByLabel = buildTagIdsByLabel(dataMap);
+  console.log(
+    `Derived: tagIdsByLabel keys=${Object.keys(tagIdsByLabel.byLabel).length} collisions=${Object.keys(tagIdsByLabel.collisions ?? {}).length}`,
+  );
   const entities = buildEntities(dataMap);
   const { indexes } = buildIndexes({
     entities,
@@ -221,6 +226,10 @@ export default async function conference(
   await writeJsonSanitized(
     path.join(derivedDir, "siteMenu.json"),
     derivedMenu,
+  );
+  await writeJsonSanitized(
+    path.join(derivedDir, "tagIdsByLabel.json"),
+    tagIdsByLabel,
   );
   await writeJsonSanitized(path.join(outputDir, "manifest.json"), manifest);
 
