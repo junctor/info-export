@@ -180,7 +180,7 @@ export function buildViews({ entities }) {
       return {
         id: doc.id,
         title_text: doc.title_text ?? null,
-        updatedAtMs: doc.updated_at ?? 0,
+        updatedAtMs: doc.updatedAtMs ?? 0,
       };
     })
     .filter(Boolean)
