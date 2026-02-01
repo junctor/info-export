@@ -42,6 +42,7 @@ function buildEventModel(event, refs, timezone) {
     beginIso: new Date(event.begin_tsz).toISOString(),
     beginDisplay: eventTimeTable(event.begin_tsz, true, timezone),
     endDisplay: eventTimeTable(event.end_tsz, false, timezone),
+    endIso: new Date(event.end_tsz).toISOString(),
   };
   if (model.id == null) {
     throw new Error("Event missing id");
