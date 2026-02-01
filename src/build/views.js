@@ -118,11 +118,13 @@ export function buildViews({ entities }) {
     .map((personId) => {
       const person = peopleById[String(personId)];
       if (!person) return null;
-      return {
+      const model = {
         id: person.id,
         name: person.name,
-        affiliations: person.affiliations ?? [],
       };
+      if (person.affiliations) model.affiliations = person.affiliations;
+      if (person.avatar_url) model.avatarUrl = person.avatar_url;
+      return model;
     })
     .filter(Boolean)
     .sort((a, b) => {

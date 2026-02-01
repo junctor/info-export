@@ -33,23 +33,6 @@ function uniqAndFilter(ids, validSet) {
   return next;
 }
 
-function normalizeAffiliations(affiliations) {
-  if (!Array.isArray(affiliations)) return [];
-  const seen = new Set();
-  const names = [];
-  for (const entry of affiliations) {
-    const name = entry?.organization;
-    if (!name) continue;
-    const cleaned = String(name).trim();
-    if (!cleaned) continue;
-    const key = cleaned.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    names.push(cleaned);
-  }
-  return names;
-}
-
 function resolveUpdatedAtMs(item) {
   if (item?.updated_at?.seconds != null) {
     return item.updated_at.seconds * 1000;
@@ -188,12 +171,13 @@ export function buildEntities(dataMap) {
     ),
     people: buildEntityMap(
       dataMap.speakers.map((person) => {
-        const affiliations = normalizeAffiliations(person.affiliations);
         const model = {
           id: person.id,
           name: person.name,
         };
-        if (affiliations.length) model.affiliations = affiliations;
+        if (person.affiliations.length > 0)
+          model.affiliations = person.affiliations;
+        if (person.avatar) model.avatar_url = person.avatar.url;
         return model;
       }),
     ),
