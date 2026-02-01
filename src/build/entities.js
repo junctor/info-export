@@ -148,11 +148,19 @@ export function buildEntities(dataMap) {
           (item.sessions || []).map((session) => session.session_id),
         ).sort((a, b) => a - b);
 
+        const relatedContentIds = uniqAndFilterIds(
+          item.related_content_ids || [],
+          refs.contentIds,
+        ).sort((a, b) => a - b);
+
         const model = {
           id: normalizeId(item.id),
           title: item.title,
+          relatedContentIds: relatedContentIds,
           sessions: sessions,
         };
+        if (item.description) model.description = item.description;
+        if (item.links?.length > 0) model.links = item.links;
         if (model.id == null) {
           throw new Error("Content item missing id");
         }
