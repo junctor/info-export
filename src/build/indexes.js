@@ -1,14 +1,20 @@
 import { eventDay, formatMinuteKey } from "../time.js";
+import { normalizeId } from "./schema.js";
 
 function eventStartSeconds(event) {
-  return event?.beginTimestampSeconds ?? null;
+  if (event?.beginTimestampSeconds != null) {
+    return event.beginTimestampSeconds;
+  }
+  const ms = Date.parse(event?.begin);
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
 }
 
 function addToIndex(index, key, value) {
-  if (!key) return;
-  const list = index[key] ?? [];
+  const resolvedKey = normalizeId(key);
+  if (!resolvedKey) return;
+  const list = index[resolvedKey] ?? [];
   list.push(value);
-  index[key] = list;
+  index[resolvedKey] = list;
 }
 
 function sortIndexByEventStart(index, eventsById) {
@@ -39,6 +45,12 @@ function sortContentIdsByTitle(index, contentById) {
 }
 
 export function buildIndexes({ entities, timeZone }) {
+  if (!entities?.events?.allIds || !entities?.events?.byId) {
+    throw new Error("buildIndexes requires entities.events store");
+  }
+  if (!entities?.content?.allIds || !entities?.content?.byId) {
+    throw new Error("buildIndexes requires entities.content store");
+  }
   const eventsById = entities.events.byId;
   const contentById = entities.content.byId;
 
@@ -59,8 +71,7 @@ export function buildIndexes({ entities, timeZone }) {
     const minuteKey = formatMinuteKey(event.begin, timeZone);
     addToIndex(eventsByStartMinute, minuteKey, eventId);
 
-    const locationId =
-      event.location_id != null ? String(event.location_id) : null;
+    const locationId = event.locationId != null ? String(event.locationId) : null;
     if (locationId) {
       addToIndex(eventsByLocation, locationId, eventId);
     }
@@ -72,7 +83,7 @@ export function buildIndexes({ entities, timeZone }) {
       addToIndex(eventsByPerson, personId, eventId);
     }
 
-    for (const tagId of event.tag_ids || []) {
+    for (const tagId of event.tagIds || []) {
       addToIndex(eventsByTag, String(tagId), eventId);
     }
   }
@@ -80,7 +91,7 @@ export function buildIndexes({ entities, timeZone }) {
   for (const contentId of entities.content.allIds) {
     const item = contentById[String(contentId)];
     if (!item) continue;
-    for (const tagId of item.tag_ids || []) {
+    for (const tagId of item.tagIds || []) {
       addToIndex(contentByTag, String(tagId), contentId);
     }
   }

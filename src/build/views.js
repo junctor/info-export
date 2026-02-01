@@ -6,8 +6,8 @@ function compareStringsCaseInsensitive(a, b) {
 }
 
 function sortTags(a, b) {
-  const aOrder = a.sort_order ?? 0;
-  const bOrder = b.sort_order ?? 0;
+  const aOrder = a.sortOrder ?? 0;
+  const bOrder = b.sortOrder ?? 0;
   if (aOrder !== bOrder) return aOrder - bOrder;
   const labelCompare = String(a.label).localeCompare(String(b.label), "en");
   if (labelCompare !== 0) return labelCompare;
@@ -15,6 +15,9 @@ function sortTags(a, b) {
 }
 
 export function buildViews({ entities }) {
+  if (!entities) {
+    throw new Error("buildViews requires entities");
+  }
   const eventsById = entities.events.byId;
   const tagsById = entities.tags.byId;
   const tagTypesById = entities.tagTypes.byId;
@@ -30,15 +33,15 @@ export function buildViews({ entities }) {
     const event = eventsById[String(eventId)];
     if (!event) continue;
 
-    const tags = (event.tag_ids || [])
+    const tags = (event.tagIds || [])
       .map((tagId) => tagsById[String(tagId)])
       .filter(Boolean)
       .sort(sortTags)
       .map((tag) => ({
         id: tag.id,
         label: tag.label,
-        color_background: tag.color_background,
-        color_foreground: tag.color_foreground,
+        colorBackground: tag.colorBackground,
+        colorForeground: tag.colorForeground,
       }));
 
     const speakerNameSet = new Set();
@@ -52,13 +55,13 @@ export function buildViews({ entities }) {
     }
 
     const locationName =
-      event.location_id != null
-        ? (locationsById[String(event.location_id)]?.name ?? null)
+      event.locationId != null
+        ? (locationsById[String(event.locationId)]?.name ?? null)
         : null;
 
     eventCardsById[String(event.id)] = {
       id: event.id,
-      content_id: event.content_id ?? null,
+      contentId: event.contentId ?? null,
       title: event.title,
       begin: event.begin,
       end: event.end,
@@ -77,10 +80,10 @@ export function buildViews({ entities }) {
         id: org.id,
         name: org.name,
       };
-      if (org.logo_url) card.logoUrl = org.logo_url;
+      if (org.logoUrl) card.logoUrl = org.logoUrl;
       return {
         card,
-        tagIds: Array.isArray(org.tag_ids) ? org.tag_ids : [],
+        tagIds: Array.isArray(org.tagIds) ? org.tagIds : [],
       };
     })
     .filter(Boolean)
@@ -123,7 +126,7 @@ export function buildViews({ entities }) {
         name: person.name,
       };
       if (person.title) model.title = person.title;
-      if (person.avatar_url) model.avatarUrl = person.avatar_url;
+      if (person.avatarUrl) model.avatarUrl = person.avatarUrl;
       return model;
     })
     .filter(Boolean)
@@ -136,15 +139,15 @@ export function buildViews({ entities }) {
   const tagsByTypeId = {};
   for (const tagId of entities.tags.allIds) {
     const tag = tagsById[String(tagId)];
-    if (!tag?.tagtype_id) continue;
-    const typeId = String(tag.tagtype_id);
+    if (!tag?.tagTypeId) continue;
+    const typeId = String(tag.tagTypeId);
     const list = tagsByTypeId[typeId] ?? [];
     list.push({
       id: tag.id,
       label: tag.label,
-      color_background: tag.color_background,
-      color_foreground: tag.color_foreground,
-      sort_order: tag.sort_order ?? null,
+      colorBackground: tag.colorBackground,
+      colorForeground: tag.colorForeground,
+      sortOrder: tag.sortOrder ?? null,
     });
     tagsByTypeId[typeId] = list;
   }
@@ -153,7 +156,7 @@ export function buildViews({ entities }) {
     .map((typeId) => {
       const type = tagTypesById[String(typeId)];
       if (!type) return null;
-      if (!type.is_browsable) return null;
+      if (!type.isBrowsable) return null;
       if (type.category !== "content") return null;
       const tags = (tagsByTypeId[String(type.id)] ?? []).sort(sortTags);
       if (!tags.length) return null;
@@ -161,14 +164,14 @@ export function buildViews({ entities }) {
         id: type.id,
         label: type.label,
         category: type.category ?? null,
-        sort_order: type.sort_order ?? null,
+        sortOrder: type.sortOrder ?? null,
         tags,
       };
     })
     .filter(Boolean)
     .sort((a, b) => {
-      const aOrder = a.sort_order ?? 0;
-      const bOrder = b.sort_order ?? 0;
+      const aOrder = a.sortOrder ?? 0;
+      const bOrder = b.sortOrder ?? 0;
       if (aOrder !== bOrder) return aOrder - bOrder;
       const labelCompare = String(a.label).localeCompare(String(b.label), "en");
       if (labelCompare !== 0) return labelCompare;
@@ -181,7 +184,7 @@ export function buildViews({ entities }) {
       if (!doc) return null;
       return {
         id: doc.id,
-        title_text: doc.title_text ?? null,
+        titleText: doc.titleText ?? null,
         updatedAtMs: doc.updatedAtMs ?? 0,
       };
     })
@@ -195,15 +198,15 @@ export function buildViews({ entities }) {
     .map((contentId) => {
       const item = contentById[String(contentId)];
       if (!item) return null;
-      const tags = (item.tag_ids || [])
+      const tags = (item.tagIds || [])
         .map((tagId) => {
           const tag = tagsById[String(tagId)];
           if (!tag) return null;
           return {
             id: tag.id,
             label: tag.label,
-            color_background: tag.color_background,
-            color_foreground: tag.color_foreground,
+            colorBackground: tag.colorBackground,
+            colorForeground: tag.colorForeground,
           };
         })
         .filter(Boolean)

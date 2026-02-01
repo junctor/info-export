@@ -8,8 +8,8 @@ function compareStringsCaseInsensitive(a, b) {
 function sortTagsWithRefs(a, b, tagsById) {
   const aTag = tagsById[String(a.id)];
   const bTag = tagsById[String(b.id)];
-  const aOrder = aTag?.sort_order ?? 0;
-  const bOrder = bTag?.sort_order ?? 0;
+  const aOrder = aTag?.sortOrder ?? 0;
+  const bOrder = bTag?.sortOrder ?? 0;
   if (aOrder !== bOrder) return aOrder - bOrder;
   const labelCompare = String(a.label).localeCompare(String(b.label), "en");
   if (labelCompare !== 0) return labelCompare;
@@ -46,6 +46,10 @@ function checkEntityStore(name, store, errors) {
   const seen = new Set();
   for (const id of allIds) {
     const key = String(id);
+    if (typeof id !== "string") {
+      errors.push(`entities/${name}.allIds contains non-string id ${key}`);
+      break;
+    }
     if (seen.has(key)) {
       errors.push(`entities/${name}.allIds contains duplicate ${key}`);
       break;
@@ -56,7 +60,11 @@ function checkEntityStore(name, store, errors) {
       errors.push(`entities/${name}.byId missing ${key}`);
       break;
     }
-    if (entry.id == null || String(entry.id) !== key) {
+    if (entry.id == null || typeof entry.id !== "string") {
+      errors.push(`entities/${name}.byId id not string for ${key}`);
+      break;
+    }
+    if (String(entry.id) !== key) {
       errors.push(`entities/${name}.byId id mismatch for ${key}`);
       break;
     }
@@ -124,7 +132,7 @@ function checkViewArrays(views, entities, errors) {
   } else {
     const allowedEventKeys = new Set([
       "id",
-      "content_id",
+      "contentId",
       "begin",
       "end",
       "title",
@@ -135,7 +143,7 @@ function checkViewArrays(views, entities, errors) {
     ]);
     const requiredEventKeys = [
       "id",
-      "content_id",
+      "contentId",
       "begin",
       "end",
       "title",
@@ -147,8 +155,8 @@ function checkViewArrays(views, entities, errors) {
     const allowedTagKeys = new Set([
       "id",
       "label",
-      "color_background",
-      "color_foreground",
+      "colorBackground",
+      "colorForeground",
     ]);
     for (const [id, card] of Object.entries(eventCardsById)) {
       if (!card || card.id == null || String(card.id) !== String(id)) {
@@ -249,14 +257,10 @@ function checkViewArrays(views, entities, errors) {
   ) {
     errors.push("views/peopleCards not sorted");
   } else {
-    const allowedPeopleKeys = new Set(["id", "name", "affiliations"]);
+    const allowedPeopleKeys = new Set(["id", "name", "title", "avatarUrl"]);
     for (const person of peopleCards) {
       if (person?.id == null || person?.name == null) {
         errors.push("views/peopleCards missing id/name");
-        break;
-      }
-      if (!("affiliations" in person)) {
-        errors.push("views/peopleCards missing affiliations");
         break;
       }
       if (!keysAreSubset(person, allowedPeopleKeys)) {
@@ -285,8 +289,8 @@ function checkViewArrays(views, entities, errors) {
     }
     if (
       !isSorted(tagTypesBrowse, (a, b) => {
-        const aOrder = a.sort_order ?? 0;
-        const bOrder = b.sort_order ?? 0;
+        const aOrder = a.sortOrder ?? 0;
+        const bOrder = b.sortOrder ?? 0;
         if (aOrder !== bOrder) return aOrder - bOrder;
         const labelCompare = String(a.label).localeCompare(
           String(b.label),
@@ -302,15 +306,15 @@ function checkViewArrays(views, entities, errors) {
       "id",
       "label",
       "category",
-      "sort_order",
+      "sortOrder",
       "tags",
     ]);
     const allowedTagKeys = new Set([
       "id",
       "label",
-      "color_background",
-      "color_foreground",
-      "sort_order",
+      "colorBackground",
+      "colorForeground",
+      "sortOrder",
     ]);
     for (const type of tagTypesBrowse) {
       if (type?.id == null || type?.label == null) {
@@ -348,13 +352,13 @@ function checkViewArrays(views, entities, errors) {
   ) {
     errors.push("views/documentsList not sorted");
   } else {
-    const allowedDocKeys = new Set(["id", "title_text", "updatedAtMs"]);
+    const allowedDocKeys = new Set(["id", "titleText", "updatedAtMs"]);
     for (const doc of documentsList) {
       if (doc?.id == null) {
         errors.push("views/documentsList missing id");
         break;
       }
-      if (!("title_text" in doc) || !("updatedAtMs" in doc)) {
+      if (!("titleText" in doc) || !("updatedAtMs" in doc)) {
         errors.push("views/documentsList missing required keys");
         break;
       }
@@ -395,8 +399,8 @@ function checkViewArrays(views, entities, errors) {
     const allowedTagKeys = new Set([
       "id",
       "label",
-      "color_background",
-      "color_foreground",
+      "colorBackground",
+      "colorForeground",
     ]);
     for (const card of contentCards) {
       if (card?.id == null || card?.title == null) {
@@ -433,17 +437,17 @@ function checkReferenceIntegrity(entities, errors) {
 
   for (const event of Object.values(entities.events.byId || {})) {
     if (
-      event.location_id != null &&
-      !locationIds.has(String(event.location_id))
+      event.locationId != null &&
+      !locationIds.has(String(event.locationId))
     ) {
-      errors.push(`events references missing location ${event.location_id}`);
+      errors.push(`events references missing location ${event.locationId}`);
       break;
     }
-    if (event.content_id != null && !contentIds.has(String(event.content_id))) {
-      errors.push(`events references missing content ${event.content_id}`);
+    if (event.contentId != null && !contentIds.has(String(event.contentId))) {
+      errors.push(`events references missing content ${event.contentId}`);
       break;
     }
-    for (const tagId of event.tag_ids || []) {
+    for (const tagId of event.tagIds || []) {
       if (!tagIds.has(String(tagId))) {
         errors.push(`events references missing tag ${tagId}`);
         return;
@@ -464,15 +468,15 @@ function checkReferenceIntegrity(entities, errors) {
   }
 
   for (const item of Object.values(entities.content.byId || {})) {
-    for (const tagId of item.tag_ids || []) {
+    for (const tagId of item.tagIds || []) {
       if (!tagIds.has(String(tagId))) {
         errors.push(`content references missing tag ${tagId}`);
         return;
       }
     }
     for (const person of item.people || []) {
-      if (!personIds.has(String(person.person_id))) {
-        errors.push(`content references missing person ${person.person_id}`);
+      if (!personIds.has(String(person.personId))) {
+        errors.push(`content references missing person ${person.personId}`);
         return;
       }
     }

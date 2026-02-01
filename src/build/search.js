@@ -1,3 +1,5 @@
+import { normalizeId } from "./schema.js";
+
 const COMBINING_MARKS_REGEX = /\p{M}/gu;
 const LETTER_OR_NUMBER_REGEX = /[\p{L}\p{N}]/u;
 
@@ -40,8 +42,10 @@ export function createSearchData(speakers, content, organizations) {
 
   for (const speaker of speakers || []) {
     const text = speaker?.name;
+    const id = normalizeId(speaker?.id);
+    if (!id) continue;
     items.push({
-      id: speaker?.id,
+      id,
       text,
       type: "person",
       norm: normalizeForSearch(text),
@@ -50,8 +54,10 @@ export function createSearchData(speakers, content, organizations) {
 
   for (const item of content || []) {
     const text = item?.title;
+    const id = normalizeId(item?.id);
+    if (!id) continue;
     items.push({
-      id: item?.id,
+      id,
       text,
       type: "content",
       norm: normalizeForSearch(text),
@@ -60,8 +66,10 @@ export function createSearchData(speakers, content, organizations) {
 
   for (const org of organizations || []) {
     const text = org?.name;
+    const id = normalizeId(org?.id);
+    if (!id) continue;
     items.push({
-      id: org?.id,
+      id,
       text,
       type: "organization",
       norm: normalizeForSearch(text),

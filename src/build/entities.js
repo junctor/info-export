@@ -1,90 +1,48 @@
-function sortById(a, b) {
-  return String(a.id).localeCompare(String(b.id), "en");
-}
-
-function buildEntityMap(items) {
-  const sorted = items.slice().sort(sortById);
-  const byId = {};
-  const allIds = [];
-  for (const item of sorted) {
-    const id = String(item.id);
-    byId[id] = item;
-    allIds.push(item.id);
-  }
-  return { allIds, byId };
-}
-
-function uniqAndFilter(ids, validSet) {
-  const seen = new Set();
-  const next = [];
-  for (const id of ids) {
-    if (id == null) continue;
-    const key = String(id);
-    if (validSet && !validSet.has(key)) continue;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    next.push(id);
-  }
-  return next;
-}
-
-function resolveUpdatedAtMs(item) {
-  if (item?.updated_at?.seconds != null) {
-    return item.updated_at.seconds * 1000;
-  }
-  if (typeof item?.updated_at === "string") {
-    const ms = Date.parse(item.updated_at);
-    return Number.isFinite(ms) ? ms : null;
-  }
-  if (item?.updated_at?.toDate) {
-    return item.updated_at.toDate().getTime();
-  }
-  if (typeof item?.updated_tsz === "string") {
-    const ms = Date.parse(item.updated_tsz);
-    return Number.isFinite(ms) ? ms : null;
-  }
-  if (typeof item?.updated_at_str === "string") {
-    const ms = Date.parse(item.updated_at_str);
-    return Number.isFinite(ms) ? ms : null;
-  }
-  return null;
-}
+import {
+  buildEntityMap,
+  normalizeId,
+  resolveUpdatedAtMs,
+  sortById,
+  uniqAndFilterIds,
+} from "./schema.js";
 
 function buildEventModel(event, refs) {
-  const speakerIds = uniqAndFilter(
-    (event.speakers || []).map((s) => s?.id),
+  const speakerIds = uniqAndFilterIds(
+    (event.speakers || []).map((speaker) => speaker?.id),
     refs.personIds,
-  );
-  const personIds = uniqAndFilter(
+  ).sort((a, b) => a.localeCompare(b, "en"));
+  const personIds = uniqAndFilterIds(
     (event.people || []).map((person) => person?.person_id),
     refs.personIds,
+  ).sort((a, b) => a.localeCompare(b, "en"));
+  const tagIds = uniqAndFilterIds(event.tag_ids || [], refs.tagIds).sort(
+    (a, b) => a.localeCompare(b, "en"),
   );
-  const tagIds = uniqAndFilter(event.tag_ids || [], refs.tagIds);
 
-  const locationId = event.location?.id ?? event.location_id ?? null;
+  const locationId = normalizeId(event.location?.id ?? event.location_id ?? null);
   const resolvedLocationId =
-    locationId != null && refs.locationIds.has(String(locationId))
-      ? locationId
-      : null;
+    locationId != null && refs.locationIds.has(locationId) ? locationId : null;
+  const contentId = normalizeId(event.content_id ?? null);
   const resolvedContentId =
-    event.content_id != null && refs.contentIds.has(String(event.content_id))
-      ? event.content_id
-      : null;
+    contentId != null && refs.contentIds.has(contentId) ? contentId : null;
 
   const color = event.type?.color ?? null;
 
   const model = {
-    id: event.id,
+    id: normalizeId(event.id),
     title: event.title,
-    content_id: resolvedContentId,
+    contentId: resolvedContentId,
     begin: event.begin,
     end: event.end,
-    location_id: resolvedLocationId,
+    locationId: resolvedLocationId,
   };
+  if (model.id == null) {
+    throw new Error("Event missing id");
+  }
 
   if (speakerIds.length) model.speakerIds = speakerIds;
   if (personIds.length) model.personIds = personIds;
-  if (tagIds.length) model.tag_ids = tagIds;
+  if (tagIds.length) model.tagIds = tagIds;
   if (color) model.color = color;
 
   return model;
@@ -93,17 +51,19 @@ function buildEventModel(event, refs) {
 function buildTags(tagTypes) {
   const tags = tagTypes.flatMap((group) =>
     (group.tags || []).map((tag) => ({
-      id: tag.id,
+      id: normalizeId(tag.id),
       label: tag.label,
-      color_background: tag.color_background,
-      color_foreground: tag.color_foreground,
-      sort_order: tag.sort_order,
-      tagtype_id: group.id,
+      colorBackground: tag.color_background,
+      colorForeground: tag.color_foreground,
+      sortOrder: tag.sort_order ?? null,
+      tagTypeId: normalizeId(group.id),
     })),
   );
 
   return tags.sort((a, b) => {
-    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+    const aOrder = a.sortOrder ?? 0;
+    const bOrder = b.sortOrder ?? 0;
+    if (aOrder !== bOrder) return aOrder - bOrder;
     const labelCompare = String(a.label).localeCompare(String(b.label), "en");
     if (labelCompare !== 0) return labelCompare;
     return sortById(a, b);
@@ -111,15 +71,47 @@ function buildTags(tagTypes) {
 }
 
 export function buildEntities(dataMap) {
+  if (!dataMap) {
+    throw new Error("buildEntities requires dataMap");
+  }
+  const requiredKeys = [
+    "locations",
+    "speakers",
+    "tagtypes",
+    "content",
+    "events",
+    "organizations",
+    "articles",
+    "documents",
+    "menus",
+  ];
+  for (const key of requiredKeys) {
+    if (!Array.isArray(dataMap[key])) {
+      throw new Error(`buildEntities requires dataMap.${key} array`);
+    }
+  }
+
   const refs = {
-    locationIds: new Set(dataMap.locations.map((loc) => String(loc.id))),
-    personIds: new Set(dataMap.speakers.map((person) => String(person.id))),
+    locationIds: new Set(
+      dataMap.locations
+        .map((loc) => normalizeId(loc.id))
+        .filter(Boolean),
+    ),
+    personIds: new Set(
+      dataMap.speakers
+        .map((person) => normalizeId(person.id))
+        .filter(Boolean),
+    ),
     tagIds: new Set(
       dataMap.tagtypes.flatMap((group) =>
-        (group.tags || []).map((tag) => String(tag.id)),
+        (group.tags || [])
+          .map((tag) => normalizeId(tag.id))
+          .filter(Boolean),
       ),
     ),
-    contentIds: new Set(dataMap.content.map((item) => String(item.id))),
+    contentIds: new Set(
+      dataMap.content.map((item) => normalizeId(item.id)).filter(Boolean),
+    ),
   };
 
   const events = dataMap.events.map((event) => buildEventModel(event, refs));
@@ -129,34 +121,54 @@ export function buildEntities(dataMap) {
     events: buildEntityMap(events),
     content: buildEntityMap(
       dataMap.content.map((item) => {
-        const tagIds = uniqAndFilter(item.tag_ids || [], refs.tagIds);
+        const tagIds = uniqAndFilterIds(item.tag_ids || [], refs.tagIds);
         const peopleEntries = (item.people || [])
           .filter((person) => person?.person_id != null)
-          .filter((person) => refs.personIds.has(String(person.person_id)));
-        const peopleIds = uniqAndFilter(
+          .map((person) => ({
+            ...person,
+            person_id: normalizeId(person.person_id),
+          }))
+          .filter((person) => person.person_id)
+          .filter((person) => refs.personIds.has(person.person_id));
+        const peopleIds = uniqAndFilterIds(
           peopleEntries.map((person) => person.person_id),
         );
         const peopleOrderById = new Map(
           peopleEntries.map((person) => [
-            String(person.person_id),
+            person.person_id,
             person.sort_order ?? null,
           ]),
         );
 
-        const sessions = (item.sessions || []).map(
-          (session) => session.session_id,
-        );
+        const sessions = uniqAndFilterIds(
+          (item.sessions || []).map((session) => session.session_id),
+        ).sort((a, b) => a.localeCompare(b, "en"));
 
         const model = {
-          id: item.id,
+          id: normalizeId(item.id),
           title: item.title,
           sessions: sessions,
         };
-        if (tagIds.length) model.tag_ids = tagIds;
+        if (model.id == null) {
+          throw new Error("Content item missing id");
+        }
+        if (tagIds.length) {
+          model.tagIds = tagIds.sort((a, b) => a.localeCompare(b, "en"));
+        }
         if (peopleIds.length) {
-          model.people = peopleIds.map((personId) => ({
-            person_id: personId,
-            sort_order: peopleOrderById.get(String(personId)) ?? null,
+          const sortedPeopleIds = peopleIds.sort((a, b) => {
+            const aOrder = peopleOrderById.get(a);
+            const bOrder = peopleOrderById.get(b);
+            if (aOrder !== bOrder) {
+              if (aOrder == null) return 1;
+              if (bOrder == null) return -1;
+              return aOrder - bOrder;
+            }
+            return a.localeCompare(b, "en");
+          });
+          model.people = sortedPeopleIds.map((personId) => ({
+            personId,
+            sortOrder: peopleOrderById.get(personId) ?? null,
           }));
         }
         return model;
@@ -165,58 +177,69 @@ export function buildEntities(dataMap) {
     people: buildEntityMap(
       dataMap.speakers.map((person) => {
         const model = {
-          id: person.id,
+          id: normalizeId(person.id),
           name: person.name,
-          content_ids: person.content_ids || [],
+          contentIds: uniqAndFilterIds(
+            person.content_ids || [],
+            refs.contentIds,
+          ).sort((a, b) => a.localeCompare(b, "en")),
         };
+        if (model.id == null) {
+          throw new Error("Person missing id");
+        }
         if (person.description) model.description = person.description;
         if (person.pronouns) model.pronouns = person.pronouns;
         if (person.title) model.title = person.title;
-        if (person.affiliations.length > 0)
+        if (person.affiliations?.length > 0)
           model.affiliations = person.affiliations;
-        if (person.avatar) model.avatar_url = person.avatar.url;
-        if (person.links.length > 0) model.links = person.links;
+        if (person.avatar) model.avatarUrl = person.avatar.url;
+        if (person.links?.length > 0) model.links = person.links;
         return model;
       }),
     ),
     locations: buildEntityMap(
       dataMap.locations.map((location) => ({
-        id: location.id,
+        id: normalizeId(location.id),
         name: location.name,
-        short_name: location.short_name ?? null,
-        parent_id: location.parent_id ?? null,
+        shortName: location.short_name ?? null,
+        parentId: normalizeId(location.parent_id ?? null),
       })),
     ),
     organizations: buildEntityMap(
       dataMap.organizations.map((org) => {
         const logoUrl = org.logo?.url ?? null;
-        const tagIds = uniqAndFilter(org.tag_ids || []);
+        const tagIds = uniqAndFilterIds(org.tag_ids || [], refs.tagIds).sort(
+          (a, b) => a.localeCompare(b, "en"),
+        );
 
         const model = {
-          id: org.id,
+          id: normalizeId(org.id),
           name: org.name,
           description: org.description ?? "TBD",
           links: org.links || [],
-          tag_id_as_organizer: org.tag_id_as_organizer,
+          tagIdAsOrganizer: normalizeId(org.tag_id_as_organizer),
         };
-        if (logoUrl) model.logo_url = logoUrl;
-        if (tagIds.length) model.tag_ids = tagIds;
+        if (model.id == null) {
+          throw new Error("Organization missing id");
+        }
+        if (logoUrl) model.logoUrl = logoUrl;
+        if (tagIds.length) model.tagIds = tagIds;
         return model;
       }),
     ),
     tags: buildEntityMap(tags),
     tagTypes: buildEntityMap(
       dataMap.tagtypes.map((tagType) => ({
-        id: tagType.id,
+        id: normalizeId(tagType.id),
         label: tagType.label,
         category: tagType.category ?? null,
-        sort_order: tagType.sort_order ?? null,
-        is_browsable: Boolean(tagType.is_browsable),
+        sortOrder: tagType.sort_order ?? null,
+        isBrowsable: Boolean(tagType.is_browsable),
       })),
     ),
     articles: buildEntityMap(
       dataMap.articles.map((article) => ({
-        id: article.id,
+        id: normalizeId(article.id),
         name: article.name,
         text: article.text ?? null,
         updatedAtMs: resolveUpdatedAtMs(article),
@@ -226,19 +249,50 @@ export function buildEntities(dataMap) {
       dataMap.documents.map((doc) => {
         const updatedAtMs = resolveUpdatedAtMs(doc);
         const model = {
-          id: doc.id,
-          title_text: doc.title_text ?? null,
-          body_text: doc.body_text ?? null,
+          id: normalizeId(doc.id),
+          titleText: doc.title_text ?? null,
+          bodyText: doc.body_text ?? null,
         };
+        if (model.id == null) {
+          throw new Error("Document missing id");
+        }
         if (updatedAtMs != null) model.updatedAtMs = updatedAtMs;
         return model;
       }),
     ),
     menus: buildEntityMap(
       dataMap.menus.map((menu) => ({
-        id: menu.id,
-        title_text: menu.title_text ?? null,
-        items: menu.items ?? [],
+        id: normalizeId(menu.id),
+        titleText: menu.title_text ?? null,
+        items: Array.isArray(menu.items)
+          ? menu.items
+              .map((item) => ({
+                id: normalizeId(item?.id),
+                titleText: item?.title_text ?? null,
+                function: item?.function ?? null,
+                sortOrder: item?.sort_order ?? null,
+                documentId: normalizeId(item?.document_id ?? null),
+                menuId: normalizeId(item?.menu_id ?? null),
+                appliedTagIds: uniqAndFilterIds(
+                  item?.applied_tag_ids || [],
+                ).sort((a, b) => a.localeCompare(b, "en")),
+                googleMaterialSymbol: item?.google_materialsymbol ?? null,
+                appleSfSymbol: item?.apple_sfsymbol ?? null,
+                prohibitTagFilter: item?.prohibit_tag_filter === "Y",
+              }))
+              .filter((item) => item.id != null)
+              .sort((a, b) => {
+                const aOrder = a.sortOrder ?? Infinity;
+                const bOrder = b.sortOrder ?? Infinity;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                const titleCompare = String(a.titleText).localeCompare(
+                  String(b.titleText),
+                  "en",
+                );
+                if (titleCompare !== 0) return titleCompare;
+                return String(a.id).localeCompare(String(b.id), "en");
+              })
+          : [],
       })),
     ),
   };

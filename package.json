@@ -15,7 +15,9 @@
   "author": "",
   "main": "src/main.js",
   "scripts": {
-    "export": "node src/main.js"
+    "export": "node src/main.js",
+    "format": "prettier --write src",
+    "sanity-check": "node tests/sanity-check.js"
   },
   "dependencies": {
     "firebase": "^12.0.0"

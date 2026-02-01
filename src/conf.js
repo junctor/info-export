@@ -75,6 +75,12 @@ export default async function conference(
   conferenceCode,
   { emitRaw = false, strict = false, verify = false } = {},
 ) {
+  const schemaVersion = Number(process.env.SCHEMA_VERSION ?? 2);
+  if (schemaVersion !== 2) {
+    throw new Error(
+      `Unsupported SCHEMA_VERSION=${process.env.SCHEMA_VERSION ?? ""}; expected 2`,
+    );
+  }
   const startedAt = Date.now();
   const outputDir = path.join(outBaseDir, conferenceCode.toLowerCase());
   const rawDir = path.join(outputDir, "raw");
@@ -181,7 +187,7 @@ export default async function conference(
     timeZone: htConf.timezone,
   });
   const views = buildViews({ entities });
-  const manifest = buildManifest({ htConf });
+  const manifest = buildManifest({ htConf, schemaVersion });
 
   const entityCounts = Object.entries(entities)
     .map(([name, store]) => `${name}=${store.allIds.length}`)

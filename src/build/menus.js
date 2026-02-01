@@ -1,3 +1,5 @@
+import { normalizeId, uniqAndFilterIds } from "./schema.js";
+
 function cleanString(value) {
   if (value == null) return "";
   const cleaned = String(value).trim();
@@ -8,22 +10,6 @@ function normalizeNumber(value) {
   if (value == null) return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
-}
-
-function normalizeTagIds(tagIds) {
-  if (!Array.isArray(tagIds)) return [];
-  const seen = new Set();
-  const next = [];
-  for (const tagId of tagIds) {
-    if (tagId == null) continue;
-    const num = Number(tagId);
-    if (!Number.isFinite(num)) continue;
-    const key = String(num);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    next.push(num);
-  }
-  return next;
 }
 
 function sortItems(items) {
@@ -74,7 +60,7 @@ function buildMenuItems(menu) {
     const title = cleanString(item?.title_text);
     const fn = cleanString(item?.function);
     const sortValue = Number(item?.sort_order);
-    const itemId = normalizeNumber(item?.id);
+    const itemId = normalizeId(item?.id);
     if (!title || !fn || !Number.isFinite(sortValue) || itemId == null) {
       continue;
     }
@@ -86,13 +72,15 @@ function buildMenuItems(menu) {
       fn,
     };
 
-    const documentId = normalizeNumber(item?.document_id);
+    const documentId = normalizeId(item?.document_id);
     if (documentId != null) derived.documentId = documentId;
 
-    const menuId = normalizeNumber(item?.menu_id);
+    const menuId = normalizeId(item?.menu_id);
     if (menuId != null) derived.menuId = menuId;
 
-    const tagIds = normalizeTagIds(item?.applied_tag_ids);
+    const tagIds = uniqAndFilterIds(item?.applied_tag_ids || []).sort((a, b) =>
+      a.localeCompare(b, "en"),
+    );
     if (tagIds.length) derived.tagIds = tagIds;
 
     const icon =
@@ -127,7 +115,7 @@ export function buildDerivedSiteMenu(dataMap) {
   const sections = menus
     .filter((menu) => menu && menu !== primaryMenu)
     .map((menu) => {
-      const menuId = normalizeNumber(menu?.id);
+      const menuId = normalizeId(menu?.id);
       if (menuId == null) return null;
       const items = sortItems(buildMenuItems(menu));
       if (!items.length) return null;
