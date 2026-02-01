@@ -122,7 +122,7 @@ export function buildViews({ entities }) {
         id: person.id,
         name: person.name,
       };
-      if (person.affiliations) model.affiliations = person.affiliations;
+      if (person.title) model.title = person.title;
       if (person.avatar_url) model.avatarUrl = person.avatar_url;
       return model;
     })
