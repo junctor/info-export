@@ -10,22 +10,21 @@ function eventStartSeconds(event) {
 }
 
 function addToIndex(index, key, value) {
-  const resolvedKey = normalizeId(key);
-  if (!resolvedKey) return;
-  const list = index[resolvedKey] ?? [];
+  if (key == null) return;
+  const list = index[key] ?? [];
   list.push(value);
-  index[resolvedKey] = list;
+  index[key] = list;
 }
 
 function sortIndexByEventStart(index, eventsById) {
   for (const key of Object.keys(index)) {
     index[key] = index[key].sort((a, b) => {
-      const aEvent = eventsById[String(a)];
-      const bEvent = eventsById[String(b)];
+      const aEvent = eventsById[a];
+      const bEvent = eventsById[b];
       const aStart = eventStartSeconds(aEvent) ?? 0;
       const bStart = eventStartSeconds(bEvent) ?? 0;
       if (aStart !== bStart) return aStart - bStart;
-      return String(a).localeCompare(String(b), "en");
+      return a - b;
     });
   }
 }
@@ -33,13 +32,13 @@ function sortIndexByEventStart(index, eventsById) {
 function sortContentIdsByTitle(index, contentById) {
   for (const key of Object.keys(index)) {
     index[key] = index[key].sort((a, b) => {
-      const aTitle = contentById[String(a)]?.title ?? "";
-      const bTitle = contentById[String(b)]?.title ?? "";
+      const aTitle = contentById[a]?.title ?? "";
+      const bTitle = contentById[b]?.title ?? "";
       const titleCompare = String(aTitle).localeCompare(String(bTitle), "en", {
         sensitivity: "base",
       });
       if (titleCompare !== 0) return titleCompare;
-      return String(a).localeCompare(String(b), "en");
+      return a - b;
     });
   }
 }
@@ -62,7 +61,7 @@ export function buildIndexes({ entities, timeZone }) {
   const contentByTag = {};
 
   for (const eventId of entities.events.allIds) {
-    const event = eventsById[String(eventId)];
+    const event = eventsById[eventId];
     if (!event) continue;
 
     const dayKey = eventDay(event.begin, timeZone);
@@ -71,28 +70,28 @@ export function buildIndexes({ entities, timeZone }) {
     const minuteKey = formatMinuteKey(event.begin, timeZone);
     addToIndex(eventsByStartMinute, minuteKey, eventId);
 
-    const locationId = event.locationId != null ? String(event.locationId) : null;
-    if (locationId) {
+    const locationId = normalizeId(event.locationId);
+    if (locationId != null) {
       addToIndex(eventsByLocation, locationId, eventId);
     }
 
     const personIds = new Set();
-    (event.speakerIds || []).forEach((id) => personIds.add(String(id)));
-    (event.personIds || []).forEach((id) => personIds.add(String(id)));
+    (event.speakerIds || []).forEach((id) => personIds.add(id));
+    (event.personIds || []).forEach((id) => personIds.add(id));
     for (const personId of personIds) {
       addToIndex(eventsByPerson, personId, eventId);
     }
 
     for (const tagId of event.tagIds || []) {
-      addToIndex(eventsByTag, String(tagId), eventId);
+      addToIndex(eventsByTag, tagId, eventId);
     }
   }
 
   for (const contentId of entities.content.allIds) {
-    const item = contentById[String(contentId)];
+    const item = contentById[contentId];
     if (!item) continue;
     for (const tagId of item.tagIds || []) {
-      addToIndex(contentByTag, String(tagId), contentId);
+      addToIndex(contentByTag, tagId, contentId);
     }
   }
 

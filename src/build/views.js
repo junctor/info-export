@@ -11,7 +11,7 @@ function sortTags(a, b) {
   if (aOrder !== bOrder) return aOrder - bOrder;
   const labelCompare = String(a.label).localeCompare(String(b.label), "en");
   if (labelCompare !== 0) return labelCompare;
-  return String(a.id).localeCompare(String(b.id), "en");
+  return a.id - b.id;
 }
 
 export function buildViews({ entities }) {
@@ -30,11 +30,11 @@ export function buildViews({ entities }) {
   const eventCardsById = {};
 
   for (const eventId of entities.events.allIds) {
-    const event = eventsById[String(eventId)];
+    const event = eventsById[eventId];
     if (!event) continue;
 
     const tags = (event.tagIds || [])
-      .map((tagId) => tagsById[String(tagId)])
+      .map((tagId) => tagsById[tagId])
       .filter(Boolean)
       .sort(sortTags)
       .map((tag) => ({
@@ -46,20 +46,20 @@ export function buildViews({ entities }) {
 
     const speakerNameSet = new Set();
     for (const id of event.speakerIds || []) {
-      const name = peopleById[String(id)]?.name;
+      const name = peopleById[id]?.name;
       if (name) speakerNameSet.add(name);
     }
     for (const id of event.personIds || []) {
-      const name = peopleById[String(id)]?.name;
+      const name = peopleById[id]?.name;
       if (name) speakerNameSet.add(name);
     }
 
     const locationName =
       event.locationId != null
-        ? (locationsById[String(event.locationId)]?.name ?? null)
+        ? (locationsById[event.locationId]?.name ?? null)
         : null;
 
-    eventCardsById[String(event.id)] = {
+    eventCardsById[event.id] = {
       id: event.id,
       contentId: event.contentId ?? null,
       title: event.title,
@@ -74,7 +74,7 @@ export function buildViews({ entities }) {
 
   const organizationsCardsList = entities.organizations.allIds
     .map((orgId) => {
-      const org = organizationsById[String(orgId)];
+      const org = organizationsById[orgId];
       if (!org) return null;
       const card = {
         id: org.id,
@@ -93,7 +93,7 @@ export function buildViews({ entities }) {
         b.card.name,
       );
       if (nameCompare !== 0) return nameCompare;
-      return String(a.card.id).localeCompare(String(b.card.id), "en");
+      return a.card.id - b.card.id;
     });
 
   const organizationsCards = {};
@@ -102,12 +102,11 @@ export function buildViews({ entities }) {
     let assigned = false;
     for (const tagId of tagIds) {
       if (tagId == null) continue;
-      const key = String(tagId);
-      if (seenTags.has(key)) continue;
-      seenTags.add(key);
-      const list = organizationsCards[key] ?? [];
+      if (seenTags.has(tagId)) continue;
+      seenTags.add(tagId);
+      const list = organizationsCards[tagId] ?? [];
       list.push(card);
-      organizationsCards[key] = list;
+      organizationsCards[tagId] = list;
       assigned = true;
     }
     if (!assigned) {
@@ -119,7 +118,7 @@ export function buildViews({ entities }) {
 
   const peopleCards = entities.people.allIds
     .map((personId) => {
-      const person = peopleById[String(personId)];
+      const person = peopleById[personId];
       if (!person) return null;
       const model = {
         id: person.id,
@@ -133,14 +132,14 @@ export function buildViews({ entities }) {
     .sort((a, b) => {
       const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
       if (nameCompare !== 0) return nameCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     });
 
   const tagsByTypeId = {};
   for (const tagId of entities.tags.allIds) {
-    const tag = tagsById[String(tagId)];
+    const tag = tagsById[tagId];
     if (!tag?.tagTypeId) continue;
-    const typeId = String(tag.tagTypeId);
+    const typeId = tag.tagTypeId;
     const list = tagsByTypeId[typeId] ?? [];
     list.push({
       id: tag.id,
@@ -154,11 +153,11 @@ export function buildViews({ entities }) {
 
   const tagTypesBrowse = entities.tagTypes.allIds
     .map((typeId) => {
-      const type = tagTypesById[String(typeId)];
+      const type = tagTypesById[typeId];
       if (!type) return null;
       if (!type.isBrowsable) return null;
       if (type.category !== "content") return null;
-      const tags = (tagsByTypeId[String(type.id)] ?? []).sort(sortTags);
+      const tags = (tagsByTypeId[type.id] ?? []).sort(sortTags);
       if (!tags.length) return null;
       return {
         id: type.id,
@@ -175,12 +174,12 @@ export function buildViews({ entities }) {
       if (aOrder !== bOrder) return aOrder - bOrder;
       const labelCompare = String(a.label).localeCompare(String(b.label), "en");
       if (labelCompare !== 0) return labelCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     });
 
   const documentsList = entities.documents.allIds
     .map((docId) => {
-      const doc = documentsById[String(docId)];
+      const doc = documentsById[docId];
       if (!doc) return null;
       return {
         id: doc.id,
@@ -191,16 +190,16 @@ export function buildViews({ entities }) {
     .filter(Boolean)
     .sort((a, b) => {
       if (a.updatedAtMs !== b.updatedAtMs) return b.updatedAtMs - a.updatedAtMs;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     });
 
   const contentCards = entities.content.allIds
     .map((contentId) => {
-      const item = contentById[String(contentId)];
+      const item = contentById[contentId];
       if (!item) return null;
       const tags = (item.tagIds || [])
         .map((tagId) => {
-          const tag = tagsById[String(tagId)];
+          const tag = tagsById[tagId];
           if (!tag) return null;
           return {
             id: tag.id,
@@ -221,18 +220,18 @@ export function buildViews({ entities }) {
     .sort((a, b) => {
       const titleCompare = compareStringsCaseInsensitive(a.title, b.title);
       if (titleCompare !== 0) return titleCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     });
 
   const searchData = createSearchData(
     entities.people.allIds
-      .map((personId) => peopleById[String(personId)])
+      .map((personId) => peopleById[personId])
       .filter(Boolean),
     entities.content.allIds
-      .map((contentId) => contentById[String(contentId)])
+      .map((contentId) => contentById[contentId])
       .filter(Boolean),
     entities.organizations.allIds
-      .map((orgId) => organizationsById[String(orgId)])
+      .map((orgId) => organizationsById[orgId])
       .filter(Boolean),
   );
 

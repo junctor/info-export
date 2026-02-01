@@ -43,7 +43,7 @@ export function createSearchData(speakers, content, organizations) {
   for (const speaker of speakers || []) {
     const text = speaker?.name;
     const id = normalizeId(speaker?.id);
-    if (!id) continue;
+    if (id == null) continue;
     items.push({
       id,
       text,
@@ -55,7 +55,7 @@ export function createSearchData(speakers, content, organizations) {
   for (const item of content || []) {
     const text = item?.title;
     const id = normalizeId(item?.id);
-    if (!id) continue;
+    if (id == null) continue;
     items.push({
       id,
       text,
@@ -67,7 +67,7 @@ export function createSearchData(speakers, content, organizations) {
   for (const org of organizations || []) {
     const text = org?.name;
     const id = normalizeId(org?.id);
-    if (!id) continue;
+    if (id == null) continue;
     items.push({
       id,
       text,

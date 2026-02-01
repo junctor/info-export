@@ -15,8 +15,8 @@ function normalizeLabel(value) {
     .replace(/^_+|_+$/g, "");
 }
 
-function compareIdStrings(a, b) {
-  return String(a).localeCompare(String(b), "en");
+function compareIdNumbers(a, b) {
+  return a - b;
 }
 
 export function buildTagIdsByLabel(dataMap) {
@@ -46,7 +46,7 @@ export function buildTagIdsByLabel(dataMap) {
       }
 
       if (existing !== id) {
-        const minId = compareIdStrings(existing, id) <= 0 ? existing : id;
+        const minId = compareIdNumbers(existing, id) <= 0 ? existing : id;
         byLabel[key] = minId;
         const set = collisions.get(key) ?? new Set();
         set.add(existing);
@@ -60,7 +60,7 @@ export function buildTagIdsByLabel(dataMap) {
   if (collisions.size) {
     const collisionObj = {};
     for (const [key, set] of collisions.entries()) {
-      collisionObj[key] = Array.from(set).sort(compareIdStrings);
+      collisionObj[key] = Array.from(set).sort(compareIdNumbers);
     }
     result.collisions = collisionObj;
   }

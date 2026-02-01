@@ -1,11 +1,19 @@
 export function normalizeId(value) {
   if (value == null) return null;
-  const key = String(value);
-  return key ? key : null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
 }
 
 export function sortById(a, b) {
-  return String(a.id).localeCompare(String(b.id), "en");
+  return a.id - b.id;
 }
 
 export function buildEntityMap(items) {
@@ -16,7 +24,10 @@ export function buildEntityMap(items) {
     if (!item || item.id == null) {
       throw new Error("buildEntityMap requires items with id");
     }
-    const id = String(item.id);
+    if (!Number.isFinite(item.id)) {
+      throw new Error("buildEntityMap requires numeric ids");
+    }
+    const id = item.id;
     if (Object.prototype.hasOwnProperty.call(byId, id)) continue;
     byId[id] = item;
     allIds.push(id);

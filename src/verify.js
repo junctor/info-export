@@ -6,14 +6,14 @@ function compareStringsCaseInsensitive(a, b) {
 }
 
 function sortTagsWithRefs(a, b, tagsById) {
-  const aTag = tagsById[String(a.id)];
-  const bTag = tagsById[String(b.id)];
+  const aTag = tagsById[a.id];
+  const bTag = tagsById[b.id];
   const aOrder = aTag?.sortOrder ?? 0;
   const bOrder = bTag?.sortOrder ?? 0;
   if (aOrder !== bOrder) return aOrder - bOrder;
   const labelCompare = String(a.label).localeCompare(String(b.label), "en");
   if (labelCompare !== 0) return labelCompare;
-  return String(a.id).localeCompare(String(b.id), "en");
+  return a.id - b.id;
 }
 
 function isSorted(list, compare) {
@@ -40,34 +40,51 @@ function checkEntityStore(name, store, errors) {
     return;
   }
   const allIds = store.allIds;
-  if (!isSorted(allIds, (a, b) => String(a).localeCompare(String(b), "en"))) {
+  if (!isSorted(allIds, (a, b) => a - b)) {
     errors.push(`entities/${name}.allIds not sorted`);
   }
   const seen = new Set();
   for (const id of allIds) {
-    const key = String(id);
-    if (typeof id !== "string") {
-      errors.push(`entities/${name}.allIds contains non-string id ${key}`);
+    if (!Number.isFinite(id)) {
+      errors.push(`entities/${name}.allIds contains non-numeric id ${id}`);
       break;
     }
-    if (seen.has(key)) {
-      errors.push(`entities/${name}.allIds contains duplicate ${key}`);
+    if (seen.has(id)) {
+      errors.push(`entities/${name}.allIds contains duplicate ${id}`);
       break;
     }
-    seen.add(key);
-    const entry = store.byId[key];
+    seen.add(id);
+    const entry = store.byId[id];
     if (!entry) {
-      errors.push(`entities/${name}.byId missing ${key}`);
+      errors.push(`entities/${name}.byId missing ${id}`);
       break;
     }
-    if (entry.id == null || typeof entry.id !== "string") {
-      errors.push(`entities/${name}.byId id not string for ${key}`);
+    if (entry.id == null || !Number.isFinite(entry.id)) {
+      errors.push(`entities/${name}.byId id not numeric for ${id}`);
       break;
     }
-    if (String(entry.id) !== key) {
-      errors.push(`entities/${name}.byId id mismatch for ${key}`);
+    if (entry.id !== id) {
+      errors.push(`entities/${name}.byId id mismatch for ${id}`);
       break;
     }
+    for (const [key, value] of Object.entries(entry)) {
+      if (key === "id" || key.endsWith("Id")) {
+        if (value != null && !Number.isFinite(value)) {
+          errors.push(`entities/${name}.${key} not numeric for ${id}`);
+          break;
+        }
+      } else if (key.endsWith("Ids")) {
+        if (!Array.isArray(value)) {
+          errors.push(`entities/${name}.${key} not array for ${id}`);
+          break;
+        }
+        if (!value.every(Number.isFinite)) {
+          errors.push(`entities/${name}.${key} contains non-numeric for ${id}`);
+          break;
+        }
+      }
+    }
+    if (errors.length) break;
   }
   const byIdKeys = Object.keys(store.byId || {});
   if (byIdKeys.length !== allIds.length) {
@@ -77,20 +94,20 @@ function checkEntityStore(name, store, errors) {
 
 function checkIndexSorted(indexName, index, eventsById, contentById, errors) {
   const compareEventIds = (a, b) => {
-    const aEvent = eventsById[String(a)];
-    const bEvent = eventsById[String(b)];
+    const aEvent = eventsById[a];
+    const bEvent = eventsById[b];
     const aStart = eventStartSeconds(aEvent);
     const bStart = eventStartSeconds(bEvent);
     if (aStart !== bStart) return aStart - bStart;
-    return String(a).localeCompare(String(b), "en");
+    return a - b;
   };
 
   const compareContentIds = (a, b) => {
-    const aTitle = contentById[String(a)]?.title ?? "";
-    const bTitle = contentById[String(b)]?.title ?? "";
+    const aTitle = contentById[a]?.title ?? "";
+    const bTitle = contentById[b]?.title ?? "";
     const titleCompare = compareStringsCaseInsensitive(aTitle, bTitle);
     if (titleCompare !== 0) return titleCompare;
-    return String(a).localeCompare(String(b), "en");
+    return a - b;
   };
 
   for (const [key, list] of Object.entries(index || {})) {
@@ -159,7 +176,8 @@ function checkViewArrays(views, entities, errors) {
       "colorForeground",
     ]);
     for (const [id, card] of Object.entries(eventCardsById)) {
-      if (!card || card.id == null || String(card.id) !== String(id)) {
+      const keyId = Number(id);
+      if (!card || card.id == null || card.id !== keyId) {
         errors.push(`views/eventCardsById missing id for ${id}`);
         break;
       }
@@ -219,7 +237,7 @@ function checkViewArrays(views, entities, errors) {
         !isSorted(list, (a, b) => {
           const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
           if (nameCompare !== 0) return nameCompare;
-          return String(a.id).localeCompare(String(b.id), "en");
+          return a.id - b.id;
         })
       ) {
         errors.push(`views/organizationsCards.${tagKey} not sorted`);
@@ -231,12 +249,15 @@ function checkViewArrays(views, entities, errors) {
           errors.push("views/organizationsCards missing id/name");
           break;
         }
-        const key = String(org.id);
-        if (seenIds.has(key)) {
+        if (!Number.isFinite(org.id)) {
+          errors.push("views/organizationsCards id not numeric");
+          break;
+        }
+        if (seenIds.has(org.id)) {
           errors.push("views/organizationsCards has duplicate id in group");
           break;
         }
-        seenIds.add(key);
+        seenIds.add(org.id);
         if (!keysAreSubset(org, allowedOrgKeys)) {
           errors.push("views/organizationsCards has extra keys");
           break;
@@ -252,7 +273,7 @@ function checkViewArrays(views, entities, errors) {
     !isSorted(peopleCards, (a, b) => {
       const nameCompare = compareStringsCaseInsensitive(a.name, b.name);
       if (nameCompare !== 0) return nameCompare;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     })
   ) {
     errors.push("views/peopleCards not sorted");
@@ -261,6 +282,10 @@ function checkViewArrays(views, entities, errors) {
     for (const person of peopleCards) {
       if (person?.id == null || person?.name == null) {
         errors.push("views/peopleCards missing id/name");
+        break;
+      }
+      if (!Number.isFinite(person.id)) {
+        errors.push("views/peopleCards id not numeric");
         break;
       }
       if (!keysAreSubset(person, allowedPeopleKeys)) {
@@ -297,7 +322,7 @@ function checkViewArrays(views, entities, errors) {
           "en",
         );
         if (labelCompare !== 0) return labelCompare;
-        return String(a.id).localeCompare(String(b.id), "en");
+        return a.id - b.id;
       })
     ) {
       errors.push("views/tagTypesBrowse not sorted");
@@ -321,6 +346,10 @@ function checkViewArrays(views, entities, errors) {
         errors.push("views/tagTypesBrowse missing id/label");
         break;
       }
+      if (!Number.isFinite(type.id)) {
+        errors.push("views/tagTypesBrowse id not numeric");
+        break;
+      }
       if (!("tags" in type)) {
         errors.push("views/tagTypesBrowse missing tags");
         break;
@@ -332,6 +361,10 @@ function checkViewArrays(views, entities, errors) {
       for (const tag of type.tags || []) {
         if (tag?.id == null || tag?.label == null) {
           errors.push("views/tagTypesBrowse.tags missing id/label");
+          break;
+        }
+        if (!Number.isFinite(tag.id)) {
+          errors.push("views/tagTypesBrowse.tags id not numeric");
           break;
         }
         if (!keysAreSubset(tag, allowedTagKeys)) {
@@ -347,7 +380,7 @@ function checkViewArrays(views, entities, errors) {
   } else if (
     !isSorted(documentsList, (a, b) => {
       if (a.updatedAtMs !== b.updatedAtMs) return b.updatedAtMs - a.updatedAtMs;
-      return String(a.id).localeCompare(String(b.id), "en");
+      return a.id - b.id;
     })
   ) {
     errors.push("views/documentsList not sorted");
@@ -356,6 +389,10 @@ function checkViewArrays(views, entities, errors) {
     for (const doc of documentsList) {
       if (doc?.id == null) {
         errors.push("views/documentsList missing id");
+        break;
+      }
+      if (!Number.isFinite(doc.id)) {
+        errors.push("views/documentsList id not numeric");
         break;
       }
       if (!("titleText" in doc) || !("updatedAtMs" in doc)) {
@@ -387,14 +424,14 @@ function checkViewArrays(views, entities, errors) {
       }
     }
     if (
-      !isSorted(contentCards, (a, b) => {
-        const titleCompare = compareStringsCaseInsensitive(a.title, b.title);
-        if (titleCompare !== 0) return titleCompare;
-        return String(a.id).localeCompare(String(b.id), "en");
-      })
-    ) {
-      errors.push("views/contentCards not sorted");
-    }
+    !isSorted(contentCards, (a, b) => {
+      const titleCompare = compareStringsCaseInsensitive(a.title, b.title);
+      if (titleCompare !== 0) return titleCompare;
+      return a.id - b.id;
+    })
+  ) {
+    errors.push("views/contentCards not sorted");
+  }
     const allowedContentKeys = new Set(["id", "title", "tags"]);
     const allowedTagKeys = new Set([
       "id",
@@ -405,6 +442,10 @@ function checkViewArrays(views, entities, errors) {
     for (const card of contentCards) {
       if (card?.id == null || card?.title == null) {
         errors.push("views/contentCards missing id/title");
+        break;
+      }
+      if (!Number.isFinite(card.id)) {
+        errors.push("views/contentCards id not numeric");
         break;
       }
       if (!("tags" in card)) {
@@ -420,6 +461,10 @@ function checkViewArrays(views, entities, errors) {
           errors.push("views/contentCards.tags missing id/label");
           break;
         }
+        if (!Number.isFinite(tag.id)) {
+          errors.push("views/contentCards.tags id not numeric");
+          break;
+        }
         if (!keysAreSubset(tag, allowedTagKeys)) {
           errors.push("views/contentCards.tags has extra keys");
           break;
@@ -430,37 +475,53 @@ function checkViewArrays(views, entities, errors) {
 }
 
 function checkReferenceIntegrity(entities, errors) {
-  const locationIds = new Set(Object.keys(entities.locations.byId || {}));
-  const personIds = new Set(Object.keys(entities.people.byId || {}));
-  const tagIds = new Set(Object.keys(entities.tags.byId || {}));
-  const contentIds = new Set(Object.keys(entities.content.byId || {}));
+  const locationIds = new Set(
+    Object.keys(entities.locations.byId || {})
+      .map((id) => Number(id))
+      .filter(Number.isFinite),
+  );
+  const personIds = new Set(
+    Object.keys(entities.people.byId || {})
+      .map((id) => Number(id))
+      .filter(Number.isFinite),
+  );
+  const tagIds = new Set(
+    Object.keys(entities.tags.byId || {})
+      .map((id) => Number(id))
+      .filter(Number.isFinite),
+  );
+  const contentIds = new Set(
+    Object.keys(entities.content.byId || {})
+      .map((id) => Number(id))
+      .filter(Number.isFinite),
+  );
 
   for (const event of Object.values(entities.events.byId || {})) {
     if (
       event.locationId != null &&
-      !locationIds.has(String(event.locationId))
+      !locationIds.has(event.locationId)
     ) {
       errors.push(`events references missing location ${event.locationId}`);
       break;
     }
-    if (event.contentId != null && !contentIds.has(String(event.contentId))) {
+    if (event.contentId != null && !contentIds.has(event.contentId)) {
       errors.push(`events references missing content ${event.contentId}`);
       break;
     }
     for (const tagId of event.tagIds || []) {
-      if (!tagIds.has(String(tagId))) {
+      if (!tagIds.has(tagId)) {
         errors.push(`events references missing tag ${tagId}`);
         return;
       }
     }
     for (const personId of event.speakerIds || []) {
-      if (!personIds.has(String(personId))) {
+      if (!personIds.has(personId)) {
         errors.push(`events references missing speaker ${personId}`);
         return;
       }
     }
     for (const personId of event.personIds || []) {
-      if (!personIds.has(String(personId))) {
+      if (!personIds.has(personId)) {
         errors.push(`events references missing person ${personId}`);
         return;
       }
@@ -469,13 +530,13 @@ function checkReferenceIntegrity(entities, errors) {
 
   for (const item of Object.values(entities.content.byId || {})) {
     for (const tagId of item.tagIds || []) {
-      if (!tagIds.has(String(tagId))) {
+      if (!tagIds.has(tagId)) {
         errors.push(`content references missing tag ${tagId}`);
         return;
       }
     }
     for (const person of item.people || []) {
-      if (!personIds.has(String(person.personId))) {
+      if (!personIds.has(person.personId)) {
         errors.push(`content references missing person ${person.personId}`);
         return;
       }

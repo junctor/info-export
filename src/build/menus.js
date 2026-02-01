@@ -17,7 +17,7 @@ function sortItems(items) {
     if (a.sort !== b.sort) return a.sort - b.sort;
     const titleCompare = String(a.title).localeCompare(String(b.title), "en");
     if (titleCompare !== 0) return titleCompare;
-    return String(a.id).localeCompare(String(b.id), "en");
+    return a.id - b.id;
   });
 }
 
@@ -79,7 +79,7 @@ function buildMenuItems(menu) {
     if (menuId != null) derived.menuId = menuId;
 
     const tagIds = uniqAndFilterIds(item?.applied_tag_ids || []).sort((a, b) =>
-      a.localeCompare(b, "en"),
+      a - b,
     );
     if (tagIds.length) derived.tagIds = tagIds;
 

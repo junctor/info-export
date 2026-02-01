@@ -10,16 +10,18 @@ function buildEventModel(event, refs) {
   const speakerIds = uniqAndFilterIds(
     (event.speakers || []).map((speaker) => speaker?.id),
     refs.personIds,
-  ).sort((a, b) => a.localeCompare(b, "en"));
+  ).sort((a, b) => a - b);
   const personIds = uniqAndFilterIds(
     (event.people || []).map((person) => person?.person_id),
     refs.personIds,
-  ).sort((a, b) => a.localeCompare(b, "en"));
+  ).sort((a, b) => a - b);
   const tagIds = uniqAndFilterIds(event.tag_ids || [], refs.tagIds).sort(
-    (a, b) => a.localeCompare(b, "en"),
+    (a, b) => a - b,
   );
 
-  const locationId = normalizeId(event.location?.id ?? event.location_id ?? null);
+  const locationId = normalizeId(
+    event.location?.id ?? event.location_id ?? null,
+  );
   const resolvedLocationId =
     locationId != null && refs.locationIds.has(locationId) ? locationId : null;
   const contentId = normalizeId(event.content_id ?? null);
@@ -32,8 +34,8 @@ function buildEventModel(event, refs) {
     id: normalizeId(event.id),
     title: event.title,
     contentId: resolvedContentId,
-    begin: event.begin,
-    end: event.end,
+    begin: event.begin_tsz,
+    end: event.end_tsz,
     locationId: resolvedLocationId,
   };
   if (model.id == null) {
@@ -95,22 +97,24 @@ export function buildEntities(dataMap) {
     locationIds: new Set(
       dataMap.locations
         .map((loc) => normalizeId(loc.id))
-        .filter(Boolean),
+        .filter(Number.isFinite),
     ),
     personIds: new Set(
       dataMap.speakers
         .map((person) => normalizeId(person.id))
-        .filter(Boolean),
+        .filter(Number.isFinite),
     ),
     tagIds: new Set(
       dataMap.tagtypes.flatMap((group) =>
         (group.tags || [])
           .map((tag) => normalizeId(tag.id))
-          .filter(Boolean),
+          .filter(Number.isFinite),
       ),
     ),
     contentIds: new Set(
-      dataMap.content.map((item) => normalizeId(item.id)).filter(Boolean),
+      dataMap.content
+        .map((item) => normalizeId(item.id))
+        .filter(Number.isFinite),
     ),
   };
 
@@ -128,7 +132,7 @@ export function buildEntities(dataMap) {
             ...person,
             person_id: normalizeId(person.person_id),
           }))
-          .filter((person) => person.person_id)
+          .filter((person) => Number.isFinite(person.person_id))
           .filter((person) => refs.personIds.has(person.person_id));
         const peopleIds = uniqAndFilterIds(
           peopleEntries.map((person) => person.person_id),
@@ -142,7 +146,7 @@ export function buildEntities(dataMap) {
 
         const sessions = uniqAndFilterIds(
           (item.sessions || []).map((session) => session.session_id),
-        ).sort((a, b) => a.localeCompare(b, "en"));
+        ).sort((a, b) => a - b);
 
         const model = {
           id: normalizeId(item.id),
@@ -153,7 +157,7 @@ export function buildEntities(dataMap) {
           throw new Error("Content item missing id");
         }
         if (tagIds.length) {
-          model.tagIds = tagIds.sort((a, b) => a.localeCompare(b, "en"));
+          model.tagIds = tagIds.sort((a, b) => a - b);
         }
         if (peopleIds.length) {
           const sortedPeopleIds = peopleIds.sort((a, b) => {
@@ -164,7 +168,7 @@ export function buildEntities(dataMap) {
               if (bOrder == null) return -1;
               return aOrder - bOrder;
             }
-            return a.localeCompare(b, "en");
+            return a - b;
           });
           model.people = sortedPeopleIds.map((personId) => ({
             personId,
@@ -182,7 +186,7 @@ export function buildEntities(dataMap) {
           contentIds: uniqAndFilterIds(
             person.content_ids || [],
             refs.contentIds,
-          ).sort((a, b) => a.localeCompare(b, "en")),
+          ).sort((a, b) => a - b),
         };
         if (model.id == null) {
           throw new Error("Person missing id");
@@ -209,7 +213,7 @@ export function buildEntities(dataMap) {
       dataMap.organizations.map((org) => {
         const logoUrl = org.logo?.url ?? null;
         const tagIds = uniqAndFilterIds(org.tag_ids || [], refs.tagIds).sort(
-          (a, b) => a.localeCompare(b, "en"),
+          (a, b) => a - b,
         );
 
         const model = {
@@ -275,7 +279,7 @@ export function buildEntities(dataMap) {
                 menuId: normalizeId(item?.menu_id ?? null),
                 appliedTagIds: uniqAndFilterIds(
                   item?.applied_tag_ids || [],
-                ).sort((a, b) => a.localeCompare(b, "en")),
+                ).sort((a, b) => a - b),
                 googleMaterialSymbol: item?.google_materialsymbol ?? null,
                 appleSfSymbol: item?.apple_sfsymbol ?? null,
                 prohibitTagFilter: item?.prohibit_tag_filter === "Y",
@@ -290,7 +294,7 @@ export function buildEntities(dataMap) {
                   "en",
                 );
                 if (titleCompare !== 0) return titleCompare;
-                return String(a.id).localeCompare(String(b.id), "en");
+                return a.id - b.id;
               })
           : [],
       })),
