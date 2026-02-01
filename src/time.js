@@ -69,18 +69,3 @@ export function formatMinuteKey(time, timeZone) {
   for (const part of parts) lookup[part.type] = part.value;
   return `${lookup.year}-${lookup.month}-${lookup.day}T${lookup.hour}:${lookup.minute}`;
 }
-
-export function getEventTimestampSeconds(event) {
-  if (event.beginTimestampSeconds != null) return event.beginTimestampSeconds;
-  if (event.begin_timestamp?.seconds != null)
-    return event.begin_timestamp.seconds;
-  const ms = Date.parse(event.begin);
-  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
-}
-
-export function getEventEndTimestampSeconds(event) {
-  if (event.endTimestampSeconds != null) return event.endTimestampSeconds;
-  if (event.end_timestamp?.seconds != null) return event.end_timestamp.seconds;
-  const ms = Date.parse(event.end);
-  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
-}

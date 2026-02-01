@@ -1,8 +1,3 @@
-import {
-  getEventEndTimestampSeconds,
-  getEventTimestampSeconds,
-} from "../time.js";
-
 function sortById(a, b) {
   return String(a.id).localeCompare(String(b.id), "en");
 }
@@ -76,8 +71,6 @@ function buildEventModel(event, refs) {
       ? event.content_id
       : null;
 
-  const beginTimestampSeconds = getEventTimestampSeconds(event);
-  const endTimestampSeconds = getEventEndTimestampSeconds(event);
   const color = event.type?.color ?? null;
 
   const model = {
@@ -89,12 +82,6 @@ function buildEventModel(event, refs) {
     location_id: resolvedLocationId,
   };
 
-  if (beginTimestampSeconds != null) {
-    model.beginTimestampSeconds = beginTimestampSeconds;
-  }
-  if (endTimestampSeconds != null) {
-    model.endTimestampSeconds = endTimestampSeconds;
-  }
   if (speakerIds.length) model.speakerIds = speakerIds;
   if (personIds.length) model.personIds = personIds;
   if (tagIds.length) model.tag_ids = tagIds;
@@ -155,9 +142,15 @@ export function buildEntities(dataMap) {
             person.sort_order ?? null,
           ]),
         );
+
+        const sessions = (item.sessions || []).map(
+          (session) => session.session_id,
+        );
+
         const model = {
           id: item.id,
           title: item.title,
+          sessions: sessions,
         };
         if (tagIds.length) model.tag_ids = tagIds;
         if (peopleIds.length) {
@@ -174,10 +167,15 @@ export function buildEntities(dataMap) {
         const model = {
           id: person.id,
           name: person.name,
+          content_ids: person.content_ids || [],
         };
+        if (person.description) model.description = person.description;
+        if (person.pronouns) model.pronouns = person.pronouns;
+        if (person.title) model.title = person.title;
         if (person.affiliations.length > 0)
           model.affiliations = person.affiliations;
         if (person.avatar) model.avatar_url = person.avatar.url;
+        if (person.links.length > 0) model.links = person.links;
         return model;
       }),
     ),
