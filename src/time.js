@@ -2,6 +2,10 @@ const LOCALE = "en-US";
 const DAY_FORMATTERS = new Map();
 const MINUTE_FORMATTERS = new Map();
 
+function toDate(value) {
+  return typeof value === "string" ? new Date(value) : value;
+}
+
 function getDayFormatter(timeZone) {
   if (DAY_FORMATTERS.has(timeZone)) return DAY_FORMATTERS.get(timeZone);
   try {
@@ -68,4 +72,15 @@ export function formatMinuteKey(time, timeZone) {
   const lookup = {};
   for (const part of parts) lookup[part.type] = part.value;
   return `${lookup.year}-${lookup.month}-${lookup.day}T${lookup.hour}:${lookup.minute}`;
+}
+
+export function eventTimeTable(value, showTz, tz) {
+  const date = toDate(value);
+  return date.toLocaleTimeString(LOCALE, {
+    timeZone: tz,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: showTz ? "short" : undefined,
+  });
 }

@@ -424,14 +424,14 @@ function checkViewArrays(views, entities, errors) {
       }
     }
     if (
-    !isSorted(contentCards, (a, b) => {
-      const titleCompare = compareStringsCaseInsensitive(a.title, b.title);
-      if (titleCompare !== 0) return titleCompare;
-      return a.id - b.id;
-    })
-  ) {
-    errors.push("views/contentCards not sorted");
-  }
+      !isSorted(contentCards, (a, b) => {
+        const titleCompare = compareStringsCaseInsensitive(a.title, b.title);
+        if (titleCompare !== 0) return titleCompare;
+        return a.id - b.id;
+      })
+    ) {
+      errors.push("views/contentCards not sorted");
+    }
     const allowedContentKeys = new Set(["id", "title", "tags"]);
     const allowedTagKeys = new Set([
       "id",
@@ -497,10 +497,7 @@ function checkReferenceIntegrity(entities, errors) {
   );
 
   for (const event of Object.values(entities.events.byId || {})) {
-    if (
-      event.locationId != null &&
-      !locationIds.has(event.locationId)
-    ) {
+    if (event.locationId != null && !locationIds.has(event.locationId)) {
       errors.push(`events references missing location ${event.locationId}`);
       break;
     }

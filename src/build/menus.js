@@ -78,8 +78,8 @@ function buildMenuItems(menu) {
     const menuId = normalizeId(item?.menu_id);
     if (menuId != null) derived.menuId = menuId;
 
-    const tagIds = uniqAndFilterIds(item?.applied_tag_ids || []).sort((a, b) =>
-      a - b,
+    const tagIds = uniqAndFilterIds(item?.applied_tag_ids || []).sort(
+      (a, b) => a - b,
     );
     if (tagIds.length) derived.tagIds = tagIds;
 

@@ -181,7 +181,7 @@ export default async function conference(
   console.log(
     `Derived: tagIdsByLabel keys=${Object.keys(tagIdsByLabel.byLabel).length} collisions=${Object.keys(tagIdsByLabel.collisions ?? {}).length}`,
   );
-  const entities = buildEntities(dataMap);
+  const entities = buildEntities(dataMap, htConf.timezone);
   const { indexes } = buildIndexes({
     entities,
     timeZone: htConf.timezone,

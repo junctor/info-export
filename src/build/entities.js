@@ -6,7 +6,9 @@ import {
   uniqAndFilterIds,
 } from "./schema.js";
 
-function buildEventModel(event, refs) {
+import { eventTimeTable } from "../time.js";
+
+function buildEventModel(event, refs, timezone) {
   const speakerIds = uniqAndFilterIds(
     (event.speakers || []).map((speaker) => speaker?.id),
     refs.personIds,
@@ -37,6 +39,9 @@ function buildEventModel(event, refs) {
     begin: event.begin_tsz,
     end: event.end_tsz,
     locationId: resolvedLocationId,
+    beginIso: new Date(event.begin_tsz).toISOString(),
+    beginDisplay: eventTimeTable(event.begin_tsz, true, timezone),
+    endDisplay: eventTimeTable(event.end_tsz, false, timezone),
   };
   if (model.id == null) {
     throw new Error("Event missing id");
@@ -72,7 +77,7 @@ function buildTags(tagTypes) {
   });
 }
 
-export function buildEntities(dataMap) {
+export function buildEntities(dataMap, timezone) {
   if (!dataMap) {
     throw new Error("buildEntities requires dataMap");
   }
@@ -118,7 +123,9 @@ export function buildEntities(dataMap) {
     ),
   };
 
-  const events = dataMap.events.map((event) => buildEventModel(event, refs));
+  const events = dataMap.events.map((event) =>
+    buildEventModel(event, refs, timezone),
+  );
   const tags = buildTags(dataMap.tagtypes);
 
   return {
