@@ -16,8 +16,8 @@ import {
   writeJson,
   writeJsonSanitized,
 } from "./io.js";
+import { summarizeOutputDir } from "./output-summary.js";
 import { validateData } from "./validate.js";
-import { summarizeOutputDir, verifyOutputs } from "./verify.js";
 
 const collections = [
   "articles",
@@ -73,7 +73,7 @@ export default async function conference(
   db,
   outBaseDir,
   conferenceCode,
-  { emitRaw = false, strict = false, verify = false } = {},
+  { emitRaw = false } = {},
 ) {
   const schemaVersion = Number(process.env.SCHEMA_VERSION ?? 2);
   if (schemaVersion !== 2) {
@@ -165,9 +165,6 @@ export default async function conference(
   } else {
     console.log("Warnings: none");
   }
-  if (strict && (warnings.length || warningEntries.length)) {
-    throw new Error("Validation failed under --strict");
-  }
 
   // 3) optionally write raw JSON
   await writeRawOutputs({ emitRaw, rawDir, dataMap, htConf });
@@ -218,17 +215,6 @@ export default async function conference(
   console.log(`Indexes: ${indexCounts}`);
   console.log(`Views: ${viewCounts}`);
 
-  if (verify) {
-    const { errors } = verifyOutputs({ entities, indexes, views });
-    if (errors.length) {
-      const preview = errors.slice(0, 5).join("; ");
-      throw new Error(
-        `Verify failed (${errors.length} issues). ${preview}${errors.length > 5 ? "…" : ""}`,
-      );
-    }
-    console.log("Verify: ok");
-  }
-
   // Client stores entities/*, indexes/*, and views/eventCardsById in IndexedDB for fast lookups and join-free schedule rendering.
   await Promise.all(
     Object.entries(entities)
@@ -267,9 +253,6 @@ export default async function conference(
   });
   if (outputWarnings.length) {
     console.warn(`⚠️  Output summary warnings: ${outputWarnings.join("; ")}`);
-    if (strict || verify) {
-      throw new Error("Output summary check failed under strict/verify");
-    }
   }
   console.log(
     `Output summary: files=${summary.totalFiles} size=${summary.totalSizeKb}KB entities=${summary.sectionCounts.entities} indexes=${summary.sectionCounts.indexes} views=${summary.sectionCounts.views} derived=${summary.sectionCounts.derived}${emitRaw ? ` raw=${summary.sectionCounts.raw}` : ""}`,

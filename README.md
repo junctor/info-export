@@ -167,7 +167,7 @@ The exporter guarantees:
 - Stable ordering for entities and indexes.
 - Timezone-correct day/minute keys using `htConf.timezone`.
 - Warnings emitted for bad data (missing refs, invalid dates, invalid timezone).
-- `--strict` can fail the export on warnings, and `--verify` performs schema/order checks.
+- Warnings are informational and do not fail the export.
 
 ## Running the Pipeline
 
@@ -185,7 +185,7 @@ npm run export -- DEFCON33
 CLI options:
 
 ```bash
-npm run export -- --conf DEFCON33 --out ./out/ht --emit-raw --strict --verify
+npm run export -- --conf DEFCON33 --out ./out/ht --emit-raw
 ```
 
 Outputs are written to:
@@ -199,13 +199,6 @@ Enable raw snapshots when debugging or auditing:
 npm run export -- --emit-raw DEFCON33
 ```
 
-Strict mode and verification:
-
-```bash
-npm run export -- --conf DEFCON33 --strict
-npm run export -- --conf DEFCON33 --verify
-```
-
 The `--emit-raw` flag (or `-r`) writes:
 - `out/ht/<conference>/raw/conference.json`
 - `out/ht/<conference>/raw/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}.json`
@@ -216,15 +209,6 @@ Typical runtime characteristics:
 - Fetches all collections in parallel.
 - Deterministic writes via stable key ordering.
 - Large datasets will primarily be bound by Firestore read time.
-
-## Verify Mode
-
-`--verify` runs lightweight checks on derived outputs:
-- schema checks for required keys and minimal fields in views
-- reference integrity via entity/link validation
-- determinism checks for stable ordering in entities, indexes, and views
-
-If verification fails, the export exits with a non-zero status.
 
 ## Extending the Pipeline
 
@@ -264,5 +248,4 @@ This pipeline does NOT try to provide:
 ## Release Checklist
 
 1. Run export: `npm run export -- --conf <CONF>`
-2. Run verify: `npm run export -- --conf <CONF> --verify`
-3. Publish artifacts from `out/ht/<conf>/`
+2. Publish artifacts from `out/ht/<conf>/`

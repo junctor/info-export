@@ -8,14 +8,12 @@ Options:
   --conf, -c <slug>     Conference code (can also be positional)
   --out, -o <path>      Output root (default: ./out/ht)
   --emit-raw, -r        Emit raw Firestore snapshots
-  --strict              Fail on validation warnings
-  --verify              Run schema/order checks on outputs
   --help, -h            Show help
 
 Examples:
   npm run export -- DEFCON33
   npm run export -- --conf DEFCON33 --emit-raw
-  npm run export -- -c DEFCON33 -o ./out/ht --verify
+  npm run export -- -c DEFCON33 -o ./out/ht
 `);
 }
 
@@ -29,8 +27,6 @@ void (async () => {
   let confCode;
   let outputDir = "./out/ht";
   let emitRaw = false;
-  let strict = false;
-  let verify = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -40,14 +36,6 @@ void (async () => {
     }
     if (arg === "--emit-raw" || arg === "-r") {
       emitRaw = true;
-      continue;
-    }
-    if (arg === "--strict") {
-      strict = true;
-      continue;
-    }
-    if (arg === "--verify") {
-      verify = true;
       continue;
     }
     const confValue = readFlagValue(arg, "--conf");
@@ -103,8 +91,6 @@ void (async () => {
       const fbDb = await firebaseInit();
       await conference(fbDb, outputDir, confCode, {
         emitRaw,
-        strict,
-        verify,
       });
     } catch (err) {
       console.error("🚨 Export failed:", err);
