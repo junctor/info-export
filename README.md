@@ -1,4 +1,4 @@
-# Info Export / Derived Data Pipeline
+# Info Export
 
 Export DEF CON conference data from Firestore, normalize it into deterministic JSON artifacts, and ship a client-friendly dataset optimized for IndexedDB-first consumption. This pipeline exists to make frontend clients fast and reliable by precomputing joins, indexes, and UI-ready views on the server side.
 
@@ -6,10 +6,11 @@ The tradeoff is deliberate: we spend more time during export to avoid runtime jo
 
 High-level flow:
 
-Firestore -> derived entities/indexes/views -> client IndexedDB (raw JSON is optional for debugging/auditing)
+Firestore -> entities/indexes/views -> client IndexedDB (raw JSON is optional for debugging/auditing)
 
 Explicit goals:
-- correctness and referential integrity
+
+- deterministic generated data
 - minimal network payloads
 - offloading expensive work from the client
 - deterministic builds with stable ordering and stable JSON key sorting
@@ -73,11 +74,13 @@ Every entity file follows the same contract:
 ```
 
 Why it is used:
+
 - Deterministic ordering via `allIds`.
 - O(1) access via `byId`.
 - Simple IndexedDB storage and lookup.
 
 Canonical entities:
+
 - `entities/events.json`
   - The authoritative event model and the join target for schedule/details.
 
@@ -87,22 +90,25 @@ Views are intentionally minimal and UI-specific. Unless otherwise noted, they ar
 
 - `views/eventCardsById.json` (schedule)
   - Shape: `{ [eventId]: EventCard }` (byId map only)
-  - EventCard fields: `id`, `content_id`, `begin`, `end`, `title`, `color`, `location`, `speakers`, `tags`
-  - `tags`: `{ id, label, color_background, color_foreground }[]`
+  - EventCard fields: `id`, `contentId`, `begin`, `end`, `title`, `color`, `location`, `speakers`, `tags`
+  - `tags`: `{ id, label, colorBackground, colorForeground }[]`
 - `views/organizationsCards.json`
-  - Array of `{ id, name, logoUrl? }` (logoUrl omitted when missing)
+  - Shape: `{ [tagId | "uncategorized"]: OrganizationCard[] }`
+  - OrganizationCard fields: `id`, `name`, `logoUrl?` (logoUrl omitted when missing)
 - `views/peopleCards.json`
-  - Array of `{ id, name, affiliations }`
-  - `affiliations` is a string array of organization names
+  - Array of `{ id, name, title?, avatarUrl? }`
 - `views/tagTypesBrowse.json`
-  - Array of `{ id, label, category, sort_order, tags }`
-  - `tags`: `{ id, label, color_background, color_foreground, sort_order }[]`
+  - Array of `{ id, label, category, sortOrder, tags }`
+  - `tags`: `{ id, label, colorBackground, colorForeground, sortOrder }[]`
   - Only includes tag types where `is_browsable == true`, `category == "content"`, and `tags.length > 0`
 - `views/documentsList.json`
-  - Array of `{ id, title_text, updatedAtMs }` (no `body_text`)
+  - Array of `{ id, titleText, updatedAtMs }` (no `bodyText`)
 - `views/contentCards.json`
   - Array of `{ id, title, tags }`
-  - `tags`: `{ id, label, color_background, color_foreground }[]`
+  - `tags`: `{ id, label, colorBackground, colorForeground }[]`
+- `views/searchData.json`
+  - Array of `{ id, text, type, norm }`
+  - `type`: `"person" | "content" | "organization"`
 
 ## Indexes
 
@@ -133,12 +139,13 @@ The client should never recompute these indexes. They are part of the contract a
 ## Manifest & Versioning
 
 `manifest.json` contains:
+
 - `code`: conference code
 - `name`: display name
 - `timezone`: IANA timezone string
 - `buildTimestamp`: the build-time timestamp (UTC)
 
-`buildTimestamp` is generated at export time and is intentionally timestamp-based (not a hash) to keep clients simple. If the timestamp changes, clients should invalidate and reload all derived artifacts. It is expected to change on every export run.
+`buildTimestamp` is generated at export time and is intentionally timestamp-based (not a hash) to keep clients simple. If the timestamp changes, clients should invalidate and reload all generated artifacts. It is expected to change on every export run.
 
 ## Client Consumption (IndexedDB-First)
 
@@ -152,6 +159,7 @@ Expected client behavior:
 4. Use IndexedDB for all queries thereafter.
 
 Typical queries:
+
 - Schedule view
   - Read `indexes/eventsByDay[YYYY-MM-DD]`, then dereference IDs from `entities/events.byId` and/or `views/eventCardsById`.
 - Event detail
@@ -159,40 +167,48 @@ Typical queries:
 - Tag/person filters
   - Use `indexes/eventsByTag[tagId]` or `indexes/eventsByPerson[personId]` and resolve IDs from entities/views.
 
-## Correctness Guarantees
+## Output Guarantees
 
 The exporter guarantees:
-- All references are validated and missing refs are counted.
-- Missing or invalid references are handled deterministically (filtered out during entity build).
+
+- References used by generated artifacts are filtered deterministically when lookup tables are available.
 - Stable ordering for entities and indexes.
 - Timezone-correct day/minute keys using `htConf.timezone`.
-- Warnings emitted for bad data (missing refs, invalid dates, invalid timezone).
-- Warnings are informational and do not fail the export.
+- Missing optional fields are omitted or emitted as `null` according to the existing artifact contract.
 
 ## Running the Pipeline
 
 Prerequisites:
+
 - Node.js >= 18
 - Firebase config in `src/config.js`
 
-Run a local export:
+Run a local export for one conference:
 
 ```bash
 npm install
 npm run export -- DEFCON33
 ```
 
+Run two conferences in one command:
+
+```bash
+npm run export -- DEFCON33 DEFCON34
+```
+
 CLI options:
 
 ```bash
 npm run export -- --conf DEFCON33 --out ./out/ht --emit-raw
+npm run export -- --conf DEFCON33 --conf DEFCON34
 ```
 
 Outputs are written to:
+
 - `out/ht/<conference>/` (conference code is lowercased)
 - `out/ht/<conference>/raw/` only when raw emission is enabled
 
-Raw outputs are optional now because the website consumes derived artifacts only.
+Raw outputs are optional now because the website consumes generated artifacts only.
 Enable raw snapshots when debugging or auditing:
 
 ```bash
@@ -200,39 +216,47 @@ npm run export -- --emit-raw DEFCON33
 ```
 
 The `--emit-raw` flag (or `-r`) writes:
+
 - `out/ht/<conference>/raw/conference.json`
 - `out/ht/<conference>/raw/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}.json`
 
-Migration note: older builds wrote production artifacts under `out/ht/<conference>/derived/`.
+Migration note: older builds wrote production artifacts under `out/ht/<conference>/derived/`. The current exporter writes production artifacts at the conference root and removes stale `derived/` output from reused output directories.
 
 Typical runtime characteristics:
+
 - Fetches all collections in parallel.
+- Exports two requested conferences concurrently.
 - Deterministic writes via stable key ordering.
 - Large datasets will primarily be bound by Firestore read time.
 
 ## Extending the Pipeline
 
 Add a new entity:
+
 1. Fetch the new collection in `src/conf.js`.
 2. Normalize it in `src/build/entities.js`.
 3. Emit a new `entities/<name>.json` file.
 
 Add a new index:
+
 1. Implement the index in `src/build/indexes.js`.
 2. Keep keys minimal and values ID-only.
 3. Sort deterministically (by start time or ID).
 
 Add a new view:
+
 - Use `src/build/views.js` for UI-ready models.
 - Prefer a view when the UI needs a trimmed, pre-joined shape.
 - Extend an entity only when the data is truly canonical.
 
 Payload discipline:
+
 - Prefer IDs over embedded objects.
 - Avoid denormalized copies of large text.
 - Keep view models minimal and UI-specific.
 
 Common mistakes to avoid:
+
 - Over-denormalizing entities (bloats payloads and breaks cache invalidation).
 - Recomputing indexes on the client (wastes CPU and risks divergence).
 - Using local time for schedule bucketing (must use `htConf.timezone`).
@@ -240,6 +264,7 @@ Common mistakes to avoid:
 ## Non-Goals
 
 This pipeline does NOT try to provide:
+
 - partial updates or incremental diffs
 - fine-grained patching or merge logic
 - client-side joins as a primary mechanism
@@ -247,5 +272,5 @@ This pipeline does NOT try to provide:
 
 ## Release Checklist
 
-1. Run export: `npm run export -- --conf <CONF>`
+1. Run export: `npm run export -- --conf <CONF>` or `npm run export -- --conf <CONF_A> --conf <CONF_B>`
 2. Publish artifacts from `out/ht/<conf>/`
