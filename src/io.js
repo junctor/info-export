@@ -54,6 +54,10 @@ export async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+export async function removeDir(dirPath) {
+  await fs.rm(dirPath, { recursive: true, force: true });
+}
+
 export async function writeJson(filePath, data, indent = 0) {
   await ensureDir(path.dirname(filePath));
   const dir = path.dirname(filePath);

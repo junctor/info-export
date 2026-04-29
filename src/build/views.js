@@ -15,9 +15,6 @@ function sortTags(a, b) {
 }
 
 export function buildViews({ entities }) {
-  if (!entities) {
-    throw new Error("buildViews requires entities");
-  }
   const eventsById = entities.events.byId;
   const tagsById = entities.tags.byId;
   const tagTypesById = entities.tagTypes.byId;

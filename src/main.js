@@ -2,16 +2,18 @@ import firebaseInit from "./init.js";
 import conference from "./conf.js";
 
 function printHelp() {
-  console.log(`Usage: npm run export -- [options] <conf>
+  console.log(`Usage: npm run export -- [options] <conf> [conf]
 
 Options:
-  --conf, -c <slug>     Conference code (can also be positional)
+  --conf, -c <slug>     Conference code (can also be positional; max 2)
   --out, -o <path>      Output root (default: ./out/ht)
   --emit-raw, -r        Emit raw Firestore snapshots
   --help, -h            Show help
 
 Examples:
   npm run export -- DEFCON33
+  npm run export -- DEFCON33 DEFCON34
+  npm run export -- --conf DEFCON33 --conf DEFCON34
   npm run export -- --conf DEFCON33 --emit-raw
   npm run export -- -c DEFCON33 -o ./out/ht
 `);
@@ -24,9 +26,23 @@ function readFlagValue(arg, prefix) {
 
 void (async () => {
   const args = process.argv.slice(2);
-  let confCode;
+  const confCodes = [];
   let outputDir = "./out/ht";
   let emitRaw = false;
+
+  function addConfCode(value) {
+    if (!value) return;
+    if (confCodes.length >= 2) {
+      console.error("🚨 Please provide no more than two conference codes.");
+      process.exit(1);
+    }
+    const outputKey = value.toLowerCase();
+    if (confCodes.some((code) => code.toLowerCase() === outputKey)) {
+      console.error(`🚨 Duplicate conference output: ${value}`);
+      process.exit(1);
+    }
+    confCodes.push(value);
+  }
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -41,7 +57,7 @@ void (async () => {
     const confValue = readFlagValue(arg, "--conf");
     const outValue = readFlagValue(arg, "--out");
     if (confValue != null) {
-      confCode = confValue;
+      addConfCode(confValue);
       continue;
     }
     if (outValue != null) {
@@ -54,7 +70,7 @@ void (async () => {
         console.error("🚨 Missing value for --conf.");
         process.exit(1);
       }
-      confCode = next;
+      addConfCode(next);
       i += 1;
       continue;
     }
@@ -73,28 +89,26 @@ void (async () => {
       printHelp();
       process.exit(1);
     }
-    if (confCode) {
-      console.error("🚨 Please provide only one conference code.");
-      process.exit(1);
-    }
-    confCode = arg;
+    addConfCode(arg);
   }
 
-  if (!confCode) {
+  if (!confCodes.length) {
     console.error("🚨 Please provide a conference code.");
     printHelp();
     process.exit(1);
   }
 
-  (async () => {
-    try {
-      const fbDb = await firebaseInit();
-      await conference(fbDb, outputDir, confCode, {
-        emitRaw,
-      });
-    } catch (err) {
-      console.error("🚨 Export failed:", err);
-      process.exit(1);
-    }
-  })();
+  try {
+    const fbDb = await firebaseInit();
+    await Promise.all(
+      confCodes.map((confCode) =>
+        conference(fbDb, outputDir, confCode, {
+          emitRaw,
+        }),
+      ),
+    );
+  } catch (err) {
+    console.error("🚨 Export failed:", err);
+    process.exit(1);
+  }
 })();

@@ -6,18 +6,15 @@ import path from "path";
 import { fetchCollection, getConference } from "./fb.js";
 import { buildEntities } from "./build/entities.js";
 import { buildIndexes } from "./build/indexes.js";
-import { buildDerivedSiteMenu } from "./build/menus.js";
-import { buildTagIdsByLabel } from "./build/tags.js";
 import { buildViews } from "./build/views.js";
 import { buildManifest } from "./build/manifest.js";
 import {
   ensureDir,
+  removeDir,
   stableStringify,
   writeJson,
   writeJsonSanitized,
 } from "./io.js";
-import { summarizeOutputDir } from "./output-summary.js";
-import { validateData } from "./validate.js";
 
 const collections = [
   "articles",
@@ -87,7 +84,7 @@ export default async function conference(
   const entitiesDir = path.join(outputDir, "entities");
   const indexesDir = path.join(outputDir, "indexes");
   const viewsDir = path.join(outputDir, "views");
-  const derivedDir = path.join(outputDir, "derived");
+  const legacyDerivedDir = path.join(outputDir, "derived");
 
   // Writes entities, indexes, views, and manifest.json for fast lookups.
   await Promise.all([
@@ -95,7 +92,8 @@ export default async function conference(
     ensureDir(entitiesDir),
     ensureDir(indexesDir),
     ensureDir(viewsDir),
-    ensureDir(derivedDir),
+    removeDir(legacyDerivedDir),
+    emitRaw ? Promise.resolve() : removeDir(rawDir),
   ]);
 
   console.log(`Starting export for ${conferenceCode} → ${outputDir}`);
@@ -124,60 +122,7 @@ export default async function conference(
     console.log(` • ${items.length} ${name}`);
   }
 
-  const { warnings, summary: validationSummary } = validateData({
-    dataMap,
-    timeZone: htConf.timezone,
-  });
-  const warningEntries = [
-    validationSummary.invalidTimezone ? `invalid timezone` : null,
-    validationSummary.missingEventLocations
-      ? `events missing locations=${validationSummary.missingEventLocations}`
-      : null,
-    validationSummary.missingEventPeople
-      ? `events missing people=${validationSummary.missingEventPeople}`
-      : null,
-    validationSummary.missingEventTags
-      ? `events missing tags=${validationSummary.missingEventTags}`
-      : null,
-    validationSummary.missingEventContent
-      ? `events missing content=${validationSummary.missingEventContent}`
-      : null,
-    validationSummary.missingEventBegin
-      ? `events missing/invalid begin=${validationSummary.missingEventBegin}`
-      : null,
-    validationSummary.missingEventEnd
-      ? `events missing/invalid end=${validationSummary.missingEventEnd}`
-      : null,
-    validationSummary.invalidEventRanges
-      ? `events begin>=end=${validationSummary.invalidEventRanges}`
-      : null,
-    validationSummary.missingContentTags
-      ? `content missing tags=${validationSummary.missingContentTags}`
-      : null,
-    validationSummary.missingContentPeople
-      ? `content missing people=${validationSummary.missingContentPeople}`
-      : null,
-  ].filter(Boolean);
-  if (warningEntries.length) {
-    console.warn(`⚠️  Warnings: ${warningEntries.join("; ")}`);
-  } else if (warnings.length) {
-    console.warn("⚠️  Warnings: unknown validation issues");
-  } else {
-    console.log("Warnings: none");
-  }
-
-  // 3) optionally write raw JSON
-  await writeRawOutputs({ emitRaw, rawDir, dataMap, htConf });
-
-  // - derived entities/indexes/views/manifest ───────────────────────────────
-  const derivedMenu = buildDerivedSiteMenu(dataMap);
-  console.log(
-    `Derived: siteMenu primary=${derivedMenu.primary.length} sections=${derivedMenu.sections?.length ?? 0}`,
-  );
-  const tagIdsByLabel = buildTagIdsByLabel(dataMap);
-  console.log(
-    `Derived: tagIdsByLabel keys=${Object.keys(tagIdsByLabel.byLabel).length} collisions=${Object.keys(tagIdsByLabel.collisions ?? {}).length}`,
-  );
+  // Build client artifacts.
   const entities = buildEntities(dataMap, htConf.timezone);
   const { indexes } = buildIndexes({
     entities,
@@ -215,55 +160,30 @@ export default async function conference(
   console.log(`Indexes: ${indexCounts}`);
   console.log(`Views: ${viewCounts}`);
 
-  // Client stores entities/*, indexes/*, and views/eventCardsById in IndexedDB for fast lookups and join-free schedule rendering.
-  await Promise.all(
-    Object.entries(entities)
-      .sort(([a], [b]) => a.localeCompare(b, "en"))
-      .map(([name, payload]) =>
-        writeJsonSanitized(path.join(entitiesDir, `${name}.json`), payload),
-      ),
-  );
-
-  await Promise.all(
-    Object.entries(indexes)
-      .sort(([a], [b]) => a.localeCompare(b, "en"))
-      .map(([name, payload]) =>
-        writeJsonSanitized(path.join(indexesDir, `${name}.json`), payload),
-      ),
-  );
-
-  await Promise.all(
-    Object.entries(views)
-      .sort(([a], [b]) => a.localeCompare(b, "en"))
-      .map(([name, payload]) =>
-        writeJsonSanitized(path.join(viewsDir, `${name}.json`), payload),
-      ),
-  );
-
-  await writeJsonSanitized(path.join(derivedDir, "siteMenu.json"), derivedMenu);
-  await writeJsonSanitized(
-    path.join(derivedDir, "tagIdsByLabel.json"),
-    tagIdsByLabel,
-  );
-  await writeJsonSanitized(path.join(outputDir, "manifest.json"), manifest);
-
-  const { summary, warnings: outputWarnings } = await summarizeOutputDir({
-    outputDir,
-    emitRaw,
-  });
-  if (outputWarnings.length) {
-    console.warn(`⚠️  Output summary warnings: ${outputWarnings.join("; ")}`);
-  }
-  console.log(
-    `Output summary: files=${summary.totalFiles} size=${summary.totalSizeKb}KB entities=${summary.sectionCounts.entities} indexes=${summary.sectionCounts.indexes} views=${summary.sectionCounts.views} derived=${summary.sectionCounts.derived}${emitRaw ? ` raw=${summary.sectionCounts.raw}` : ""}`,
-  );
-  if (summary.largestFiles.length) {
-    console.log(
-      `Largest files: ${summary.largestFiles
-        .map((entry) => `${entry.name}=${entry.sizeKb}KB`)
-        .join(", ")}`,
+  // Client stores entities/*, indexes/*, and views/* in IndexedDB for fast lookups.
+  const entityWrites = Object.entries(entities)
+    .sort(([a], [b]) => a.localeCompare(b, "en"))
+    .map(([name, payload]) =>
+      writeJsonSanitized(path.join(entitiesDir, `${name}.json`), payload),
     );
-  }
+  const indexWrites = Object.entries(indexes)
+    .sort(([a], [b]) => a.localeCompare(b, "en"))
+    .map(([name, payload]) =>
+      writeJsonSanitized(path.join(indexesDir, `${name}.json`), payload),
+    );
+  const viewWrites = Object.entries(views)
+    .sort(([a], [b]) => a.localeCompare(b, "en"))
+    .map(([name, payload]) =>
+      writeJsonSanitized(path.join(viewsDir, `${name}.json`), payload),
+    );
+
+  await Promise.all([
+    writeRawOutputs({ emitRaw, rawDir, dataMap, htConf }),
+    writeJsonSanitized(path.join(outputDir, "manifest.json"), manifest),
+    ...entityWrites,
+    ...indexWrites,
+    ...viewWrites,
+  ]);
 
   console.log(`Output root: ${outputDir}`);
   console.log(`Raw outputs emitted: ${emitRaw}`);

@@ -79,26 +79,6 @@ function buildTags(tagTypes) {
 }
 
 export function buildEntities(dataMap, timezone) {
-  if (!dataMap) {
-    throw new Error("buildEntities requires dataMap");
-  }
-  const requiredKeys = [
-    "locations",
-    "speakers",
-    "tagtypes",
-    "content",
-    "events",
-    "organizations",
-    "articles",
-    "documents",
-    "menus",
-  ];
-  for (const key of requiredKeys) {
-    if (!Array.isArray(dataMap[key])) {
-      throw new Error(`buildEntities requires dataMap.${key} array`);
-    }
-  }
-
   const refs = {
     locationIds: new Set(
       dataMap.locations

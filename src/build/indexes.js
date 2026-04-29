@@ -16,13 +16,19 @@ function addToIndex(index, key, value) {
   index[key] = list;
 }
 
-function sortIndexByEventStart(index, eventsById) {
+function buildEventSortKeys(eventsById) {
+  const sortKeys = {};
+  for (const [eventId, event] of Object.entries(eventsById)) {
+    sortKeys[eventId] = eventStartSeconds(event) ?? 0;
+  }
+  return sortKeys;
+}
+
+function sortIndexByEventStart(index, eventSortKeys) {
   for (const key of Object.keys(index)) {
     index[key] = index[key].sort((a, b) => {
-      const aEvent = eventsById[a];
-      const bEvent = eventsById[b];
-      const aStart = eventStartSeconds(aEvent) ?? 0;
-      const bStart = eventStartSeconds(bEvent) ?? 0;
+      const aStart = eventSortKeys[a] ?? 0;
+      const bStart = eventSortKeys[b] ?? 0;
       if (aStart !== bStart) return aStart - bStart;
       return a - b;
     });
@@ -44,14 +50,9 @@ function sortContentIdsByTitle(index, contentById) {
 }
 
 export function buildIndexes({ entities, timeZone }) {
-  if (!entities?.events?.allIds || !entities?.events?.byId) {
-    throw new Error("buildIndexes requires entities.events store");
-  }
-  if (!entities?.content?.allIds || !entities?.content?.byId) {
-    throw new Error("buildIndexes requires entities.content store");
-  }
   const eventsById = entities.events.byId;
   const contentById = entities.content.byId;
+  const eventSortKeys = buildEventSortKeys(eventsById);
 
   const eventsByDay = {};
   const eventsByStartMinute = {};
@@ -95,11 +96,11 @@ export function buildIndexes({ entities, timeZone }) {
     }
   }
 
-  sortIndexByEventStart(eventsByDay, eventsById);
-  sortIndexByEventStart(eventsByStartMinute, eventsById);
-  sortIndexByEventStart(eventsByLocation, eventsById);
-  sortIndexByEventStart(eventsByPerson, eventsById);
-  sortIndexByEventStart(eventsByTag, eventsById);
+  sortIndexByEventStart(eventsByDay, eventSortKeys);
+  sortIndexByEventStart(eventsByStartMinute, eventSortKeys);
+  sortIndexByEventStart(eventsByLocation, eventSortKeys);
+  sortIndexByEventStart(eventsByPerson, eventSortKeys);
+  sortIndexByEventStart(eventsByTag, eventSortKeys);
 
   sortContentIdsByTitle(contentByTag, contentById);
 
