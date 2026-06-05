@@ -1,4 +1,3 @@
-import { formatNameList } from "../normalize.js";
 import { createSearchData } from "./search.js";
 
 function compareStringsCaseInsensitive(a, b) {
@@ -15,59 +14,12 @@ function sortTags(a, b) {
 }
 
 export function buildViews({ entities }) {
-  const eventsById = entities.events.byId;
   const tagsById = entities.tags.byId;
   const tagTypesById = entities.tagTypes.byId;
   const organizationsById = entities.organizations.byId;
-  const locationsById = entities.locations.byId;
   const peopleById = entities.people.byId;
   const contentById = entities.content.byId;
   const documentsById = entities.documents.byId;
-
-  const eventCardsById = {};
-
-  for (const eventId of entities.events.allIds) {
-    const event = eventsById[eventId];
-    if (!event) continue;
-
-    const tags = (event.tagIds || [])
-      .map((tagId) => tagsById[tagId])
-      .filter(Boolean)
-      .sort(sortTags)
-      .map((tag) => ({
-        id: tag.id,
-        label: tag.label,
-        colorBackground: tag.colorBackground,
-        colorForeground: tag.colorForeground,
-      }));
-
-    const speakerNameSet = new Set();
-    for (const id of event.speakerIds || []) {
-      const name = peopleById[id]?.name;
-      if (name) speakerNameSet.add(name);
-    }
-    for (const id of event.personIds || []) {
-      const name = peopleById[id]?.name;
-      if (name) speakerNameSet.add(name);
-    }
-
-    const locationName =
-      event.locationId != null
-        ? (locationsById[event.locationId]?.name ?? null)
-        : null;
-
-    eventCardsById[event.id] = {
-      id: event.id,
-      contentId: event.contentId ?? null,
-      title: event.title,
-      begin: event.begin,
-      end: event.end,
-      color: event.color ?? null,
-      location: locationName,
-      speakers: formatNameList(Array.from(speakerNameSet)),
-      tags,
-    };
-  }
 
   const organizationsCardsList = entities.organizations.allIds
     .map((orgId) => {
@@ -85,10 +37,7 @@ export function buildViews({ entities }) {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      const nameCompare = compareStringsCaseInsensitive(
-        a.card.name,
-        b.card.name,
-      );
+      const nameCompare = compareStringsCaseInsensitive(a.card.name, b.card.name);
       if (nameCompare !== 0) return nameCompare;
       return a.card.id - b.card.id;
     });
@@ -221,19 +170,12 @@ export function buildViews({ entities }) {
     });
 
   const searchData = createSearchData(
-    entities.people.allIds
-      .map((personId) => peopleById[personId])
-      .filter(Boolean),
-    entities.content.allIds
-      .map((contentId) => contentById[contentId])
-      .filter(Boolean),
-    entities.organizations.allIds
-      .map((orgId) => organizationsById[orgId])
-      .filter(Boolean),
+    entities.people.allIds.map((personId) => peopleById[personId]).filter(Boolean),
+    entities.content.allIds.map((contentId) => contentById[contentId]).filter(Boolean),
+    entities.organizations.allIds.map((orgId) => organizationsById[orgId]).filter(Boolean),
   );
 
   return {
-    eventCardsById,
     organizationsCards,
     peopleCards,
     tagTypesBrowse,

@@ -32,9 +32,7 @@ export function normalizeForSearch(text) {
 export function searchIndex(indexArray, query) {
   const normalizedQuery = normalizeForSearch(query);
   if (!normalizedQuery) return [];
-  return (indexArray || []).filter((item) =>
-    String(item?.norm ?? "").includes(normalizedQuery),
-  );
+  return (indexArray || []).filter((item) => String(item?.norm ?? "").includes(normalizedQuery));
 }
 
 export function createSearchData(speakers, content, organizations) {

@@ -61,10 +61,7 @@ export async function removeDir(dirPath) {
 export async function writeJson(filePath, data, indent = 0) {
   await ensureDir(path.dirname(filePath));
   const dir = path.dirname(filePath);
-  const tmpPath = path.join(
-    dir,
-    `.tmp-${path.basename(filePath)}-${process.pid}-${Date.now()}`,
-  );
+  const tmpPath = path.join(dir, `.tmp-${path.basename(filePath)}-${process.pid}-${Date.now()}`);
   await fs.writeFile(tmpPath, stableStringify(data, indent));
   await fs.rename(tmpPath, filePath);
 }
@@ -73,10 +70,7 @@ export async function writeJsonSanitized(filePath, data, indent = 0) {
   await ensureDir(path.dirname(filePath));
   const sanitized = sanitizeStringsDeep(data);
   const dir = path.dirname(filePath);
-  const tmpPath = path.join(
-    dir,
-    `.tmp-${path.basename(filePath)}-${process.pid}-${Date.now()}`,
-  );
+  const tmpPath = path.join(dir, `.tmp-${path.basename(filePath)}-${process.pid}-${Date.now()}`);
   await fs.writeFile(tmpPath, stableStringify(sanitized, indent));
   await fs.rename(tmpPath, filePath);
 }

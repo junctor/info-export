@@ -17,18 +17,13 @@ function buildEventModel(event, refs, timezone) {
     (event.people || []).map((person) => person?.person_id),
     refs.personIds,
   ).sort((a, b) => a - b);
-  const tagIds = uniqAndFilterIds(event.tag_ids || [], refs.tagIds).sort(
-    (a, b) => a - b,
-  );
+  const tagIds = uniqAndFilterIds(event.tag_ids || [], refs.tagIds).sort((a, b) => a - b);
 
-  const locationId = normalizeId(
-    event.location?.id ?? event.location_id ?? null,
-  );
+  const locationId = normalizeId(event.location?.id ?? event.location_id ?? null);
   const resolvedLocationId =
     locationId != null && refs.locationIds.has(locationId) ? locationId : null;
   const contentId = normalizeId(event.content_id ?? null);
-  const resolvedContentId =
-    contentId != null && refs.contentIds.has(contentId) ? contentId : null;
+  const resolvedContentId = contentId != null && refs.contentIds.has(contentId) ? contentId : null;
 
   const color = event.type?.color ?? null;
 
@@ -81,32 +76,22 @@ function buildTags(tagTypes) {
 export function buildEntities(dataMap, timezone) {
   const refs = {
     locationIds: new Set(
-      dataMap.locations
-        .map((loc) => normalizeId(loc.id))
-        .filter(Number.isFinite),
+      dataMap.locations.map((loc) => normalizeId(loc.id)).filter(Number.isFinite),
     ),
     personIds: new Set(
-      dataMap.speakers
-        .map((person) => normalizeId(person.id))
-        .filter(Number.isFinite),
+      dataMap.speakers.map((person) => normalizeId(person.id)).filter(Number.isFinite),
     ),
     tagIds: new Set(
       dataMap.tagtypes.flatMap((group) =>
-        (group.tags || [])
-          .map((tag) => normalizeId(tag.id))
-          .filter(Number.isFinite),
+        (group.tags || []).map((tag) => normalizeId(tag.id)).filter(Number.isFinite),
       ),
     ),
     contentIds: new Set(
-      dataMap.content
-        .map((item) => normalizeId(item.id))
-        .filter(Number.isFinite),
+      dataMap.content.map((item) => normalizeId(item.id)).filter(Number.isFinite),
     ),
   };
 
-  const events = dataMap.events.map((event) =>
-    buildEventModel(event, refs, timezone),
-  );
+  const events = dataMap.events.map((event) => buildEventModel(event, refs, timezone));
   const tags = buildTags(dataMap.tagtypes);
 
   return {
@@ -122,14 +107,9 @@ export function buildEntities(dataMap, timezone) {
           }))
           .filter((person) => Number.isFinite(person.person_id))
           .filter((person) => refs.personIds.has(person.person_id));
-        const peopleIds = uniqAndFilterIds(
-          peopleEntries.map((person) => person.person_id),
-        );
+        const peopleIds = uniqAndFilterIds(peopleEntries.map((person) => person.person_id));
         const peopleOrderById = new Map(
-          peopleEntries.map((person) => [
-            person.person_id,
-            person.sort_order ?? null,
-          ]),
+          peopleEntries.map((person) => [person.person_id, person.sort_order ?? null]),
         );
 
         const sessions = uniqAndFilterIds(
@@ -179,10 +159,9 @@ export function buildEntities(dataMap, timezone) {
         const model = {
           id: normalizeId(person.id),
           name: person.name,
-          contentIds: uniqAndFilterIds(
-            person.content_ids || [],
-            refs.contentIds,
-          ).sort((a, b) => a - b),
+          contentIds: uniqAndFilterIds(person.content_ids || [], refs.contentIds).sort(
+            (a, b) => a - b,
+          ),
         };
         if (model.id == null) {
           throw new Error("Person missing id");
@@ -190,8 +169,7 @@ export function buildEntities(dataMap, timezone) {
         if (person.description) model.description = person.description;
         if (person.pronouns) model.pronouns = person.pronouns;
         if (person.title) model.title = person.title;
-        if (person.affiliations?.length > 0)
-          model.affiliations = person.affiliations;
+        if (person.affiliations?.length > 0) model.affiliations = person.affiliations;
         if (person.avatar) model.avatarUrl = person.avatar.url;
         if (person.links?.length > 0) model.links = person.links;
         return model;
@@ -208,9 +186,7 @@ export function buildEntities(dataMap, timezone) {
     organizations: buildEntityMap(
       dataMap.organizations.map((org) => {
         const logoUrl = org.logo?.url ?? null;
-        const tagIds = uniqAndFilterIds(org.tag_ids || [], refs.tagIds).sort(
-          (a, b) => a - b,
-        );
+        const tagIds = uniqAndFilterIds(org.tag_ids || [], refs.tagIds).sort((a, b) => a - b);
 
         const model = {
           id: normalizeId(org.id),
@@ -259,41 +235,6 @@ export function buildEntities(dataMap, timezone) {
         if (updatedAtMs != null) model.updatedAtMs = updatedAtMs;
         return model;
       }),
-    ),
-    menus: buildEntityMap(
-      dataMap.menus.map((menu) => ({
-        id: normalizeId(menu.id),
-        titleText: menu.title_text ?? null,
-        items: Array.isArray(menu.items)
-          ? menu.items
-              .map((item) => ({
-                id: normalizeId(item?.id),
-                titleText: item?.title_text ?? null,
-                function: item?.function ?? null,
-                sortOrder: item?.sort_order ?? null,
-                documentId: normalizeId(item?.document_id ?? null),
-                menuId: normalizeId(item?.menu_id ?? null),
-                appliedTagIds: uniqAndFilterIds(
-                  item?.applied_tag_ids || [],
-                ).sort((a, b) => a - b),
-                googleMaterialSymbol: item?.google_materialsymbol ?? null,
-                appleSfSymbol: item?.apple_sfsymbol ?? null,
-                prohibitTagFilter: item?.prohibit_tag_filter === "Y",
-              }))
-              .filter((item) => item.id != null)
-              .sort((a, b) => {
-                const aOrder = a.sortOrder ?? Infinity;
-                const bOrder = b.sortOrder ?? Infinity;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-                const titleCompare = String(a.titleText).localeCompare(
-                  String(b.titleText),
-                  "en",
-                );
-                if (titleCompare !== 0) return titleCompare;
-                return a.id - b.id;
-              })
-          : [],
-      })),
     ),
   };
 }
