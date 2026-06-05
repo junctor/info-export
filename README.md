@@ -23,9 +23,9 @@ Explicit goals:
 - `{ allIds, byId }` maps for O(1) access
   - Clients can fetch any record in constant time without scanning arrays.
 - Precomputed indexes
-  - Common queries (day, location, tag, person) are computed once in the exporter.
+  - Runtime queries for day and tag schedules are computed once in the exporter.
 - Timezone correctness
-  - All schedule bucketing uses `htConf.timezone` so day/minute keys match local event time.
+  - Schedule bucketing uses `htConf.timezone` so day keys match local event time.
 - Minimal payload philosophy
   - Prefer IDs over embedded objects; include strings only when they are directly needed by UI.
 - Logic lives in the exporter
@@ -36,13 +36,14 @@ Explicit goals:
 ```
 out/ht/<conference>/
   manifest.json
+  derived/
   entities/
   indexes/
   views/
   raw/ (only when --emit-raw is enabled)
 ```
 
-Production artifacts live at the conference root (`manifest.json`, `entities/`, `indexes/`, `views/`); `raw/` is optional debug/audit output behind `--emit-raw`. Production artifacts are normalized for size; raw (when emitted) is unmodified.
+Production artifacts live at the conference root (`manifest.json`, `derived/`, `entities/`, `indexes/`, `views/`); `raw/` is optional debug/audit output behind `--emit-raw`. Production artifacts are normalized for size; raw (when emitted) is unmodified.
 
 - `raw/` (optional)
   - Firestore snapshots written as JSON for debugging and auditing.
@@ -52,12 +53,35 @@ Production artifacts live at the conference root (`manifest.json`, `entities/`, 
     `organizations`, `speakers`, `tagtypes`.
 - `manifest.json`
   - Build manifest used for cache invalidation (see Manifest & Versioning).
+- `derived/tagIdsByLabel.json`
+  - Runtime tag lookup table keyed by normalized label.
 - `entities/`
   - Canonical, normalized stores intended for IndexedDB.
 - `indexes/`
-  - Precomputed query accelerators keyed by day/minute/location/person/tag.
+  - Precomputed query accelerators keyed by day and tag.
 - `views/`
   - UI-specific, render-ready models (minimal schedule view models, etc.).
+
+Required production artifacts:
+
+- `manifest.json`
+- `derived/tagIdsByLabel.json`
+- `entities/articles.json`
+- `entities/content.json`
+- `entities/documents.json`
+- `entities/events.json`
+- `entities/locations.json`
+- `entities/organizations.json`
+- `entities/people.json`
+- `entities/tags.json`
+- `indexes/eventsByDay.json`
+- `indexes/eventsByTag.json`
+- `views/contentCards.json`
+- `views/documentsList.json`
+- `views/organizationsCards.json`
+- `views/peopleCards.json`
+- `views/searchData.json`
+- `views/tagTypesBrowse.json`
 
 ## Entity Model Contract
 
@@ -88,10 +112,6 @@ Canonical entities:
 
 Views are intentionally minimal and UI-specific. Unless otherwise noted, they are arrays (not `{ allIds, byId }` maps).
 
-- `views/eventCardsById.json` (schedule)
-  - Shape: `{ [eventId]: EventCard }` (byId map only)
-  - EventCard fields: `id`, `contentId`, `begin`, `end`, `title`, `color`, `location`, `speakers`, `tags`
-  - `tags`: `{ id, label, colorBackground, colorForeground }[]`
 - `views/organizationsCards.json`
   - Shape: `{ [tagId | "uncategorized"]: OrganizationCard[] }`
   - OrganizationCard fields: `id`, `name`, `logoUrl?` (logoUrl omitted when missing)
@@ -117,22 +137,9 @@ Indexes are maps from a key to a list of event/content IDs. They are sorted by e
 - `eventsByDay`
   - Key: `YYYY-MM-DD` (conference timezone)
   - Solves: day-based schedule grouping without scanning all events.
-- `eventsByStartMinute`
-  - Key: `YYYY-MM-DDTHH:MM` (conference timezone)
-  - Solves: minute-precision schedules and timelines.
-  - This is the minute-bucket equivalent of an epoch-minute index; add one only if a client actually needs numeric minute keys.
-- `eventsByLocation`
-  - Key: `location_id`
-  - Solves: room-based schedules and filters.
-- `eventsByPerson`
-  - Key: `person_id`
-  - Solves: speaker/person pages and filters.
 - `eventsByTag`
   - Key: `tag_id`
   - Solves: tag-based filters and tag landing pages.
-- `contentByTag` (if present in content)
-  - Key: `tag_id`
-  - Solves: tagged content filtering without scanning all content.
 
 The client should never recompute these indexes. They are part of the contract and kept stable by the exporter.
 
@@ -154,18 +161,18 @@ Expected client behavior:
 1. Fetch `manifest.json` on page load.
 2. Compare `buildTimestamp` to the version stored in IndexedDB.
 3. If changed (or missing locally):
-   - download `entities/*`, `indexes/*`, `views/*`
+   - download the required production artifacts
    - store each file as an IndexedDB object store
 4. Use IndexedDB for all queries thereafter.
 
 Typical queries:
 
 - Schedule view
-  - Read `indexes/eventsByDay[YYYY-MM-DD]`, then dereference IDs from `entities/events.byId` and/or `views/eventCardsById`.
+  - Read `indexes/eventsByDay[YYYY-MM-DD]`, then dereference IDs from `entities/events.byId`.
 - Event detail
   - Lookup in `entities/events.byId` by event ID, join as needed with `entities/locations`, `entities/people`, `entities/content`.
-- Tag/person filters
-  - Use `indexes/eventsByTag[tagId]` or `indexes/eventsByPerson[personId]` and resolve IDs from entities/views.
+- Tag filters
+  - Use `indexes/eventsByTag[tagId]` and resolve IDs from entities/views.
 
 ## Output Guarantees
 
@@ -220,7 +227,7 @@ The `--emit-raw` flag (or `-r`) writes:
 - `out/ht/<conference>/raw/conference.json`
 - `out/ht/<conference>/raw/{articles,content,documents,events,locations,menus,organizations,speakers,tagtypes}.json`
 
-Migration note: older builds wrote production artifacts under `out/ht/<conference>/derived/`. The current exporter writes production artifacts at the conference root and removes stale `derived/` output from reused output directories.
+Migration note: older builds emitted broader entity, index, and view sets. The current exporter recreates production artifact directories on each run so stale, unused JSON is removed from reused output directories.
 
 Typical runtime characteristics:
 
