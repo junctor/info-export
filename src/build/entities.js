@@ -51,6 +51,67 @@ function buildEventModel(event, refs, timezone) {
   return model;
 }
 
+function peopleToSpeakerRefs(people) {
+  return (people || [])
+    .map((person) => {
+      const id = normalizeId(person?.person_id);
+      return id == null ? null : { id };
+    })
+    .filter(Boolean);
+}
+
+function buildSessionEventModel(content, session, eventById) {
+  const sessionId = normalizeId(session?.session_id);
+  if (sessionId == null) return null;
+
+  const existing = eventById.get(sessionId) ?? {};
+  const people = Array.isArray(content.people) ? content.people : existing.people;
+  const locationId = normalizeId(
+    session.location_id ?? existing.location_id ?? existing.location?.id ?? null,
+  );
+
+  return {
+    ...existing,
+    id: sessionId,
+    title: content.title ?? existing.title,
+    content_id: content.id ?? existing.content_id,
+    begin_tsz: session.begin_tsz ?? existing.begin_tsz,
+    end_tsz: session.end_tsz ?? existing.end_tsz,
+    location: locationId == null ? existing.location : { ...existing.location, id: locationId },
+    location_id: locationId,
+    people,
+    speakers: existing.speakers ?? peopleToSpeakerRefs(people),
+    tag_ids: Array.isArray(content.tag_ids) ? content.tag_ids : existing.tag_ids,
+  };
+}
+
+function buildEventSources(dataMap) {
+  const eventById = new Map(
+    dataMap.events.map((event) => [normalizeId(event.id), event]).filter(([id]) => id != null),
+  );
+  const sessionEventIds = new Set();
+  const sessionEvents = [];
+
+  for (const content of dataMap.content) {
+    for (const session of content.sessions || []) {
+      const event = buildSessionEventModel(content, session, eventById);
+      if (!event) continue;
+      sessionEventIds.add(event.id);
+      sessionEvents.push(event);
+    }
+  }
+
+  if (!sessionEvents.length) return dataMap.events;
+
+  return [
+    ...sessionEvents,
+    ...dataMap.events.filter((event) => {
+      const id = normalizeId(event.id);
+      return id != null && !sessionEventIds.has(id);
+    }),
+  ];
+}
+
 function buildTags(tagTypes) {
   const tags = tagTypes.flatMap((group) =>
     (group.tags || []).map((tag) => ({
@@ -91,7 +152,7 @@ export function buildEntities(dataMap, timezone) {
     ),
   };
 
-  const events = dataMap.events.map((event) => buildEventModel(event, refs, timezone));
+  const events = buildEventSources(dataMap).map((event) => buildEventModel(event, refs, timezone));
   const tags = buildTags(dataMap.tagtypes);
 
   return {
