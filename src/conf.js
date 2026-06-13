@@ -89,11 +89,19 @@ async function writeRawOutputs({ emitRaw, rawDir, dataMap, htConf }) {
   await writeJson(path.join(rawDir, "conference.json"), htConf);
 }
 
-export default async function conference(db, outBaseDir, conferenceCode, { emitRaw = false } = {}) {
+export default async function conference(
+  db,
+  outBaseDir,
+  conferenceCode,
+  { emitRaw = false, verbose = false } = {},
+) {
   const schemaVersion = Number(process.env.SCHEMA_VERSION ?? 2);
   if (schemaVersion !== 2) {
     throw new Error(`Unsupported SCHEMA_VERSION=${process.env.SCHEMA_VERSION ?? ""}; expected 2`);
   }
+  const log = (...args) => {
+    if (verbose) console.log(...args);
+  };
   const startedAt = Date.now();
   const outputDir = path.join(outBaseDir, conferenceCode.toLowerCase());
   const rawDir = path.join(outputDir, "raw");
@@ -118,7 +126,7 @@ export default async function conference(db, outBaseDir, conferenceCode, { emitR
     ensureDir(derivedDir),
   ]);
 
-  console.log(`Starting export for ${conferenceCode} → ${outputDir}`);
+  log(`Starting export for ${conferenceCode} -> ${outputDir}`);
 
   // 1) fetch everything in parallel
   const confPromise = getConference(db, conferenceCode);
@@ -134,9 +142,9 @@ export default async function conference(db, outBaseDir, conferenceCode, { emitR
     collections.map((name, i) => [name, sortCollection(rawData[i])]),
   );
 
-  console.log(`Fetched for ${htConf.code} (${htConf.name}):`);
+  log(`Fetched for ${htConf.code} (${htConf.name}):`);
   for (const [name, items] of Object.entries(dataMap)) {
-    console.log(` • ${items.length} ${name}`);
+    log(` - ${items.length} ${name}`);
   }
 
   // Build client artifacts.
@@ -175,10 +183,10 @@ export default async function conference(db, outBaseDir, conferenceCode, { emitR
     `documentsList=${views.documentsList?.length ?? 0}`,
     `contentCards=${views.contentCards?.length ?? 0}`,
   ].join(", ");
-  console.log(`Entities: ${entityCounts}`);
-  console.log(`Indexes: ${indexCounts}`);
-  console.log(`Views: ${viewCounts}`);
-  console.log(
+  log(`Entities: ${entityCounts}`);
+  log(`Indexes: ${indexCounts}`);
+  log(`Views: ${viewCounts}`);
+  log(
     `Derived: tagIdsByLabel keys=${Object.keys(tagIdsByLabel.byLabel).length} collisions=${Object.keys(tagIdsByLabel.collisions ?? {}).length}`,
   );
 
@@ -208,8 +216,17 @@ export default async function conference(db, outBaseDir, conferenceCode, { emitR
     ...viewWrites,
   ]);
 
-  console.log(`Output root: ${outputDir}`);
-  console.log(`Raw outputs emitted: ${emitRaw}`);
-  if (emitRaw) console.log(`Raw output: ${rawDir}`);
-  console.log(`Finished in ${((Date.now() - startedAt) / 1000).toFixed(2)}s`);
+  const durationMs = Date.now() - startedAt;
+  log(`Output root: ${outputDir}`);
+  log(`Raw outputs emitted: ${emitRaw}`);
+  if (emitRaw) log(`Raw output: ${rawDir}`);
+  log(`Finished in ${(durationMs / 1000).toFixed(2)}s`);
+
+  return {
+    code: htConf.code ?? conferenceCode,
+    name: htConf.name ?? conferenceCode,
+    outputDir,
+    rawDir: emitRaw ? rawDir : null,
+    durationMs,
+  };
 }

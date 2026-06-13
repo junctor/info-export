@@ -208,6 +208,7 @@ CLI options:
 ```bash
 npm run export -- --conf DEFCON33 --out ./out/ht --emit-raw
 npm run export -- --conf DEFCON33 --conf DEFCON34 --conf DCSG2026
+npm run export -- --conf DEFCON33 --verbose
 ```
 
 Outputs are written to:

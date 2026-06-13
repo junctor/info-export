@@ -8,6 +8,7 @@ Options:
   --conf, -c <slug>     Conference code (can also be positional; repeatable)
   --out, -o <path>      Output root (default: ./out/ht)
   --emit-raw, -r        Emit raw Firestore snapshots
+  --verbose, -v         Print detailed per-conference counts
   --help, -h            Show help
 
 Examples:
@@ -29,6 +30,7 @@ void (async () => {
   const confCodes = [];
   let outputDir = "./out/ht";
   let emitRaw = false;
+  let verbose = false;
 
   function addConfCode(value) {
     if (!value) return;
@@ -48,6 +50,10 @@ void (async () => {
     }
     if (arg === "--emit-raw" || arg === "-r") {
       emitRaw = true;
+      continue;
+    }
+    if (arg === "--verbose" || arg === "-v") {
+      verbose = true;
       continue;
     }
     const confValue = readFlagValue(arg, "--conf");
@@ -95,14 +101,28 @@ void (async () => {
   }
 
   try {
+    const startedAt = Date.now();
     const fbDb = await firebaseInit();
-    await Promise.all(
+    const summaries = await Promise.all(
       confCodes.map((confCode) =>
         conference(fbDb, outputDir, confCode, {
           emitRaw,
+          verbose,
         }),
       ),
     );
+    const duration = ((Date.now() - startedAt) / 1000).toFixed(2);
+    if (summaries.length === 1) {
+      const [summary] = summaries;
+      const rawSuffix = summary.rawDir ? " with raw snapshots" : "";
+      console.log(`Exported ${summary.code} -> ${summary.outputDir}${rawSuffix} in ${duration}s.`);
+    } else {
+      const codes = summaries.map((summary) => summary.code).join(", ");
+      const rawSuffix = emitRaw ? " with raw snapshots" : "";
+      console.log(
+        `Exported ${summaries.length} conferences -> ${outputDir}${rawSuffix} in ${duration}s: ${codes}.`,
+      );
+    }
   } catch (err) {
     console.error("🚨 Export failed:", err);
     process.exit(1);
