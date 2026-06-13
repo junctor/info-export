@@ -197,17 +197,17 @@ npm install
 npm run export -- DEFCON33
 ```
 
-Run two conferences in one command:
+Run multiple conferences in one command:
 
 ```bash
-npm run export -- DEFCON33 DEFCON34
+npm run export -- DEFCON33 DEFCON34 DCSG2026 DEFCONBAHRAIN2025
 ```
 
 CLI options:
 
 ```bash
 npm run export -- --conf DEFCON33 --out ./out/ht --emit-raw
-npm run export -- --conf DEFCON33 --conf DEFCON34
+npm run export -- --conf DEFCON33 --conf DEFCON34 --conf DCSG2026
 ```
 
 Outputs are written to:
@@ -232,7 +232,7 @@ Migration note: older builds emitted broader entity, index, and view sets. The c
 Typical runtime characteristics:
 
 - Fetches all collections in parallel.
-- Exports two requested conferences concurrently.
+- Exports all requested conferences concurrently.
 - Deterministic writes via stable key ordering.
 - Large datasets will primarily be bound by Firestore read time.
 

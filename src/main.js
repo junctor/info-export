@@ -2,18 +2,18 @@ import firebaseInit from "./init.js";
 import conference from "./conf.js";
 
 function printHelp() {
-  console.log(`Usage: npm run export -- [options] <conf> [conf]
+  console.log(`Usage: npm run export -- [options] <conf> [conf...]
 
 Options:
-  --conf, -c <slug>     Conference code (can also be positional; max 2)
+  --conf, -c <slug>     Conference code (can also be positional; repeatable)
   --out, -o <path>      Output root (default: ./out/ht)
   --emit-raw, -r        Emit raw Firestore snapshots
   --help, -h            Show help
 
 Examples:
   npm run export -- DEFCON33
-  npm run export -- DEFCON33 DEFCON34
-  npm run export -- --conf DEFCON33 --conf DEFCON34
+  npm run export -- DEFCON33 DEFCON34 DCSG2026
+  npm run export -- --conf DEFCON33 --conf DEFCON34 --conf DCSG2026
   npm run export -- --conf DEFCON33 --emit-raw
   npm run export -- -c DEFCON33 -o ./out/ht
 `);
@@ -32,10 +32,6 @@ void (async () => {
 
   function addConfCode(value) {
     if (!value) return;
-    if (confCodes.length >= 2) {
-      console.error("🚨 Please provide no more than two conference codes.");
-      process.exit(1);
-    }
     const outputKey = value.toLowerCase();
     if (confCodes.some((code) => code.toLowerCase() === outputKey)) {
       console.error(`🚨 Duplicate conference output: ${value}`);
