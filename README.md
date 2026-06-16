@@ -78,10 +78,20 @@ Required production artifacts:
 - `indexes/eventsByTag.json`
 - `views/contentCards.json`
 - `views/documentsList.json`
+- `views/announcementsList.json`
+- `views/bookmarkEventsById.json`
+- `views/locationCards.json`
 - `views/organizationsCards.json`
 - `views/peopleCards.json`
+- `views/scheduleDays.json`
 - `views/searchData.json`
 - `views/tagTypesBrowse.json`
+- `details/content/<id>.json`
+- `details/documents/<id>.json`
+- `details/locations/<id>.json`
+- `details/organizations/<id>.json`
+- `details/people/<id>.json`
+- `details/tags/<id>.json`
 
 ## Entity Model Contract
 
@@ -129,6 +139,32 @@ Views are intentionally minimal and UI-specific. Unless otherwise noted, they ar
 - `views/searchData.json`
   - Array of `{ id, text, type, norm }`
   - `type`: `"person" | "content" | "organization"`
+- `views/scheduleDays.json`
+  - Array of day groups with page-ready schedule event view models.
+  - Includes the full event as `session`, joined `contentEntity`, `locationName`, compact tag chips, speaker names, timestamps, and display/ISO time fields.
+- `views/bookmarkEventsById.json`
+  - Map of string event ID to the same schedule event view model used by `scheduleDays`.
+- `views/locationCards.json`
+  - Array of `{ id, name, shortName, parentId }` in `entities/locations.allIds` order.
+- `views/announcementsList.json`
+  - Full article entities sorted by `updatedAtMs` descending.
+
+## Detail Contracts
+
+Detail files are static JSON documents under `details/` and are generated from canonical entities without slimming the root entity object.
+
+- `details/content/<id>.json`
+  - `{ content, sessions, locations, people, tags }`
+- `details/people/<id>.json`
+  - `{ person, events, locations }`
+- `details/tags/<id>.json`
+  - `{ tag, days }`, where `days` uses the same schedule day shape as `views/scheduleDays.json`
+- `details/locations/<id>.json`
+  - `{ location, days }`, filtered to events at that location
+- `details/documents/<id>.json`
+  - Full document entity
+- `details/organizations/<id>.json`
+  - Full organization entity
 
 ## Indexes
 
