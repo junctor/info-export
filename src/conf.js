@@ -7,7 +7,7 @@ import { fetchCollection, getConference } from "./fb.js";
 import { buildEntities } from "./build/entities.js";
 import { buildIndexes } from "./build/indexes.js";
 import { buildTagIdsByLabel } from "./build/tags.js";
-import { buildViews } from "./build/views.js";
+import { buildPageReadyArtifacts, buildViews } from "./build/views.js";
 import { buildManifest } from "./build/manifest.js";
 import { ensureDir, removeDir, stableStringify, writeJson, writeJsonSanitized } from "./io.js";
 
@@ -37,11 +37,15 @@ const outputEntityNames = [
 const outputIndexNames = ["eventsByDay", "eventsByTag"];
 
 const outputViewNames = [
+  "announcementsList",
+  "bookmarkEventsById",
   "contentCards",
   "documentsList",
+  "locationCards",
   "organizationsCards",
   "peopleCards",
   "searchData",
+  "scheduleDays",
   "tagTypesBrowse",
 ];
 
@@ -52,6 +56,17 @@ function buildJsonWrites({ source, names, dir }) {
     }
     return writeJsonSanitized(path.join(dir, `${name}.json`), source[name]);
   });
+}
+
+function buildDetailWrites({ details, dir }) {
+  const writes = [];
+  for (const groupName of Object.keys(details).sort()) {
+    const byId = details[groupName] ?? {};
+    for (const id of Object.keys(byId).sort((a, b) => Number(a) - Number(b))) {
+      writes.push(writeJsonSanitized(path.join(dir, groupName, `${id}.json`), byId[id]));
+    }
+  }
+  return writes;
 }
 
 function sortCollection(items) {
@@ -108,6 +123,7 @@ export default async function conference(
   const entitiesDir = path.join(outputDir, "entities");
   const indexesDir = path.join(outputDir, "indexes");
   const viewsDir = path.join(outputDir, "views");
+  const detailsDir = path.join(outputDir, "details");
   const derivedDir = path.join(outputDir, "derived");
 
   // Recreate artifact directories so removed runtime files do not linger.
@@ -116,6 +132,7 @@ export default async function conference(
     removeDir(entitiesDir),
     removeDir(indexesDir),
     removeDir(viewsDir),
+    removeDir(detailsDir),
     removeDir(derivedDir),
     removeDir(rawDir),
   ]);
@@ -123,6 +140,7 @@ export default async function conference(
     ensureDir(entitiesDir),
     ensureDir(indexesDir),
     ensureDir(viewsDir),
+    ensureDir(detailsDir),
     ensureDir(derivedDir),
   ]);
 
@@ -153,7 +171,15 @@ export default async function conference(
     entities,
     timeZone: htConf.timezone,
   });
-  const views = buildViews({ entities });
+  const pageReadyArtifacts = buildPageReadyArtifacts({
+    entities,
+    indexes,
+    timeZone: htConf.timezone,
+  });
+  const views = {
+    ...buildViews({ entities }),
+    ...pageReadyArtifacts.views,
+  };
   const manifest = buildManifest({ htConf, schemaVersion });
   const tagIdsByLabel = buildTagIdsByLabel(dataMap);
 
@@ -182,6 +208,8 @@ export default async function conference(
     `tagTypesBrowse=${views.tagTypesBrowse?.length ?? 0}`,
     `documentsList=${views.documentsList?.length ?? 0}`,
     `contentCards=${views.contentCards?.length ?? 0}`,
+    `scheduleDays=${views.scheduleDays?.length ?? 0}`,
+    `locationCards=${views.locationCards?.length ?? 0}`,
   ].join(", ");
   log(`Entities: ${entityCounts}`);
   log(`Indexes: ${indexCounts}`);
@@ -206,6 +234,10 @@ export default async function conference(
     names: outputViewNames,
     dir: viewsDir,
   });
+  const detailWrites = buildDetailWrites({
+    details: pageReadyArtifacts.details,
+    dir: detailsDir,
+  });
 
   await Promise.all([
     writeRawOutputs({ emitRaw, rawDir, dataMap, htConf }),
@@ -214,6 +246,7 @@ export default async function conference(
     ...entityWrites,
     ...indexWrites,
     ...viewWrites,
+    ...detailWrites,
   ]);
 
   const durationMs = Date.now() - startedAt;
